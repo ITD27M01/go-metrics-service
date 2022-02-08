@@ -43,9 +43,9 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr *metrics.Metrics) {
 	}
 }
 
-func sendReport(ctx context.Context, mtr *metrics.Metrics, serverUrl string, client http.Client) (err error) {
+func sendReport(ctx context.Context, mtr *metrics.Metrics, serverURL string, client http.Client) (err error) {
 	for k, v := range mtr.GaugeMetrics {
-		metricUpdateURL := fmt.Sprintf("%s/gauge/%s/%f", serverUrl, k, v)
+		metricUpdateURL := fmt.Sprintf("%s/gauge/%s/%f", serverURL, k, v)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 		if err != nil {
@@ -70,7 +70,7 @@ func sendReport(ctx context.Context, mtr *metrics.Metrics, serverUrl string, cli
 	}
 
 	for k, v := range mtr.CounterMetrics {
-		metricUpdateURL := fmt.Sprintf("%s/counter/%s/%d", serverUrl, k, v)
+		metricUpdateURL := fmt.Sprintf("%s/counter/%s/%d", serverURL, k, v)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 		if err != nil {
