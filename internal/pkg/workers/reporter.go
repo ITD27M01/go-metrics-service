@@ -10,7 +10,7 @@ import (
 )
 
 type ReporterConfig struct {
-	ServerUrl      string
+	ServerURL      string
 	ServerTimeout  time.Duration
 	ReportInterval time.Duration
 }
@@ -35,7 +35,7 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr *metrics.Metrics) {
 		case <-reporterContext.Done():
 			return
 		case <-reportTicker.C:
-			err := sendReport(reporterContext, mtr, rw.Cfg.ServerUrl, client)
+			err := sendReport(reporterContext, mtr, rw.Cfg.ServerURL, client)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -45,9 +45,9 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr *metrics.Metrics) {
 
 func sendReport(ctx context.Context, mtr *metrics.Metrics, serverUrl string, client http.Client) (err error) {
 	for k, v := range mtr.GaugeMetrics {
-		metricUpdateUrl := fmt.Sprintf("%s/gauge/%s/%f", serverUrl, k, v)
+		metricUpdateURL := fmt.Sprintf("%s/gauge/%s/%f", serverUrl, k, v)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateUrl, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -70,9 +70,9 @@ func sendReport(ctx context.Context, mtr *metrics.Metrics, serverUrl string, cli
 	}
 
 	for k, v := range mtr.CounterMetrics {
-		metricUpdateUrl := fmt.Sprintf("%s/counter/%s/%d", serverUrl, k, v)
+		metricUpdateURL := fmt.Sprintf("%s/counter/%s/%d", serverUrl, k, v)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateUrl, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 		if err != nil {
 			fmt.Println(err)
 			continue
