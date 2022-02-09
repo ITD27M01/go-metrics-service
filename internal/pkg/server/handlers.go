@@ -12,16 +12,16 @@ import (
 
 const (
 	updatePathLength = 4
+	gaugeBitSize     = 64
+	counterBase      = 10
+	counterBitSize   = 64
 )
 
 func registerHandlers(mux *http.ServeMux, metricsServer *MetricsServer) {
-	mux.HandleFunc(fmt.Sprintf("/update/%s/", metrics.GaugeMetricTypeName),
-		UpdateHandler(metricsServer, metrics.GaugeMetricTypeName))
-	mux.HandleFunc(fmt.Sprintf("/update/%s/", metrics.CounterMetricTypeName),
-		UpdateHandler(metricsServer, metrics.CounterMetricTypeName))
+	mux.HandleFunc("/update/", UpdateHandler(metricsServer))
 }
 
-func UpdateHandler(metricsServer *MetricsServer, metricType string) http.HandlerFunc {
+func UpdateHandler(metricsServer *MetricsServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			http.Error(
@@ -47,8 +47,9 @@ func UpdateHandler(metricsServer *MetricsServer, metricType string) http.Handler
 		}
 
 		var err error
-		metricData := tokens[len(tokens)-1]
-		metricName := tokens[len(tokens)-2]
+		metricType := tokens[1]
+		metricName := tokens[2]
+		metricData := tokens[3]
 
 		switch {
 		case metricType == metrics.GaugeMetricTypeName:
@@ -70,7 +71,7 @@ func UpdateHandler(metricsServer *MetricsServer, metricType string) http.Handler
 }
 
 func updateGageMetric(metricName string, metricData string, metricsData *metrics.Metrics) error {
-	if parsedData, err := strconv.ParseFloat(metricData, 64); err == nil {
+	if parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize); err == nil {
 		metricsData.GaugeMetrics[metricName] = metrics.Gauge(parsedData)
 	} else {
 		return err
@@ -80,7 +81,7 @@ func updateGageMetric(metricName string, metricData string, metricsData *metrics
 }
 
 func updateCounterMetric(metricName string, metricData string, metricsData *metrics.Metrics) error {
-	if parsedData, err := strconv.ParseInt(metricData, 10, 64); err == nil {
+	if parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err == nil {
 		metricsData.CounterMetrics[metricName] += metrics.Counter(parsedData)
 	} else {
 		return err

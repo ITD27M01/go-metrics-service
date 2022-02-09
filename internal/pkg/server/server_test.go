@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
@@ -78,16 +77,11 @@ func TestUserViewHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tokens := strings.FieldsFunc(tt.metric, func(c rune) bool {
-				return c == '/'
-			})
-			metricType := tokens[1]
-
 			request := httptest.NewRequest(http.MethodPost, tt.metric, nil)
 			request.Header.Add("Content-Type", "text/plain")
 
 			w := httptest.NewRecorder()
-			h := server.UpdateHandler(&metricsServer, metricType)
+			h := server.UpdateHandler(&metricsServer)
 			h.ServeHTTP(w, request)
 			res := w.Result()
 
@@ -95,15 +89,13 @@ func TestUserViewHandler(t *testing.T) {
 				t.Errorf("Expected status code %d, got %d", tt.want.code, w.Code)
 			}
 
-			defer func(Body io.ReadCloser) {
-				err := Body.Close()
-				if err != nil {
-					t.Log(err)
-				}
-			}(res.Body)
 			_, err := io.ReadAll(res.Body)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
+			}
+			err = res.Body.Close()
+			if err != nil {
+				return
 			}
 		})
 	}
