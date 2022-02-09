@@ -3,12 +3,16 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
 type Config struct {
 	ServerAddress string
 	ServerPort    string
+	MetricsData   *metrics.Metrics
 }
 
 type MetricsServer struct {
@@ -24,7 +28,7 @@ func (s *MetricsServer) StartListener(ctx context.Context) {
 	s.context = serverContext
 
 	mux := http.DefaultServeMux
-	registerHandlers(mux)
+	registerHandlers(mux, s)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.Cfg.ServerAddress, s.Cfg.ServerPort),
@@ -34,14 +38,14 @@ func (s *MetricsServer) StartListener(ctx context.Context) {
 	s.listener = httpServer
 
 	if err := s.listener.ListenAndServe(); err != http.ErrServerClosed {
-		fmt.Printf("HTTP server ListenAndServe: %v", err)
+		log.Printf("HTTP server ListenAndServe: %v", err)
 	}
-	fmt.Println("HTTP server ListenAndServe exit")
+	log.Println("HTTP server ListenAndServe exit")
 }
 
 func (s *MetricsServer) StopListener() {
 	err := s.listener.Shutdown(s.context)
 	if err != nil {
-		fmt.Printf("HTTP server ListenAndServe shutdown error: %v", err)
+		log.Printf("HTTP server ListenAndServe shutdown error: %v", err)
 	}
 }
