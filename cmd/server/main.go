@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
 )
 
 func main() {
@@ -14,6 +16,7 @@ func main() {
 		Cfg: server.Config{
 			ServerPort:    "8080",
 			ServerAddress: "0.0.0.0",
+			MetricsData:   metrics.NewMetrics(),
 		}}
 
 	go metricsServer.StartListener(context.Background())
@@ -27,6 +30,6 @@ func main() {
 
 	<-signalChanel
 
-	fmt.Println("Stop signal received, graceful shutdown the server...")
+	log.Println("Stop signal received, graceful shutdown the server...")
 	metricsServer.StopListener()
 }

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
 )
 
 const (
@@ -43,11 +44,11 @@ func main() {
 
 	<-signalChanel
 
-	fmt.Println("Stop signal received, stopping collector worker...")
+	log.Println("Stop signal received, stopping collector worker...")
 	cancelCollector()
 
-	fmt.Println("...stopping reporter worker")
+	log.Println("...stopping reporter worker")
 	cancelReporter()
 
-	fmt.Println("All workers are stopped")
+	log.Println("All workers are stopped")
 }
