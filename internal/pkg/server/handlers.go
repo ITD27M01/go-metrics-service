@@ -62,7 +62,7 @@ func GetMetricHandler(metricsServer *MetricsServer) func(r chi.Router) {
 			case metricType == metrics.GaugeMetricTypeName:
 				var metricData metrics.Gauge
 				metricData, ok = metricsServer.Cfg.MetricsData.GaugeMetrics[metricName]
-				stringifyMetricData = fmt.Sprintf("%f", metricData)
+				stringifyMetricData = fmt.Sprintf("%g", metricData)
 			case metricType == metrics.CounterMetricTypeName:
 				var metricData metrics.Counter
 				metricData, ok = metricsServer.Cfg.MetricsData.CounterMetrics[metricName]

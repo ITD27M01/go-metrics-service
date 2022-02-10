@@ -13,19 +13,42 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const metricsHtml = "<!DOCTYPE html>\n<html lang=\"en\">\n<body>\n<table>\n" +
-	"    <tr>\n\t\t<th>Type</th>\n" +
-	"        <th>Name</th>\n" +
-	"        <th>Value</th>\n" +
-	"    </tr>\n    \n" +
-	"        <tr>\n\t\t\t<td style='text-align:center; vertical-align:middle'>Gauge</td>\n" +
-	"            <td style='text-align:center; vertical-align:middle'>test</td>\n" +
-	"            <td style='text-align:center; vertical-align:middle'>100</td>\n" +
-	"        </tr>\n    \n    \n" +
-	"        <tr>\n\t\t\t<td style='text-align:center; vertical-align:middle'>Counter</td>\n" +
-	"            <td style='text-align:center; vertical-align:middle'>test</td>\n" +
-	"            <td style='text-align:center; vertical-align:middle'>100</td>\n" +
-	"        </tr>\n    \n</table>\n</body>\n</html>\n"
+const metricsHTML = `<!DOCTYPE html>
+<html lang="en">
+<body>
+<table>
+    <tr>
+        <th>Type</th>
+        <th>Name</th>
+        <th>Value</th>
+    </tr>
+    <tr>
+        <td style='text-align:center; vertical-align:middle'>Gauge</td>
+        <td style='text-align:center; vertical-align:middle'>test</td>
+        <td style='text-align:center; vertical-align:middle'>100</td>
+    </tr>
+    
+    <tr>
+        <td style='text-align:center; vertical-align:middle'>Gauge</td>
+        <td style='text-align:center; vertical-align:middle'>testSetGet134</td>
+        <td style='text-align:center; vertical-align:middle'>96969.519</td>
+    </tr>
+    
+    <tr>
+        <td style='text-align:center; vertical-align:middle'>Gauge</td>
+        <td style='text-align:center; vertical-align:middle'>testSetGet135</td>
+        <td style='text-align:center; vertical-align:middle'>156519.255</td>
+    </tr>
+    
+    <tr>
+        <td style='text-align:center; vertical-align:middle'>Counter</td>
+        <td style='text-align:center; vertical-align:middle'>test</td>
+        <td style='text-align:center; vertical-align:middle'>100</td>
+    </tr>
+    </table>
+</body>
+</html>
+`
 
 type want struct {
 	code int
@@ -54,6 +77,40 @@ var tests = []test{
 		method: http.MethodPost,
 		want: want{
 			code: http.StatusOK,
+		},
+	},
+	{
+		name:   "Test gauge post 1",
+		metric: "/update/gauge/testSetGet134/96969.519",
+		method: http.MethodPost,
+		want: want{
+			code: http.StatusOK,
+		},
+	},
+	{
+		name:   "Test gauge post 2",
+		metric: "/update/gauge/testSetGet135/156519.255",
+		method: http.MethodPost,
+		want: want{
+			code: http.StatusOK,
+		},
+	},
+	{
+		name:   "Test gauge get 1",
+		metric: "/value/gauge/testSetGet134",
+		method: http.MethodGet,
+		want: want{
+			code: http.StatusOK,
+			data: "96969.519",
+		},
+	},
+	{
+		name:   "Test gauge get 2",
+		metric: "/value/gauge/testSetGet135",
+		method: http.MethodGet,
+		want: want{
+			code: http.StatusOK,
+			data: "156519.255",
 		},
 	},
 	{
@@ -102,7 +159,7 @@ var tests = []test{
 		method: http.MethodGet,
 		want: want{
 			code: http.StatusOK,
-			data: metricsHtml,
+			data: metricsHTML,
 		},
 	},
 	{
@@ -111,7 +168,7 @@ var tests = []test{
 		method: http.MethodGet,
 		want: want{
 			code: http.StatusOK,
-			data: "100.000000",
+			data: "100",
 		},
 	},
 	{
@@ -157,10 +214,10 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
 
 	assert.Equal(t, testData.want.code, resp.StatusCode)
 	require.NoError(t, err)
+	defer resp.Body.Close()
 
 	if testData.method == http.MethodGet {
 		respBody, err := ioutil.ReadAll(resp.Body)
