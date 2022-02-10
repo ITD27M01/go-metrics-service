@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
@@ -27,8 +29,13 @@ func (s *MetricsServer) StartListener(ctx context.Context) {
 
 	s.context = serverContext
 
-	mux := http.DefaultServeMux
-	registerHandlers(mux, s)
+	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+	mux.Use(middleware.RequestID)
+	mux.Use(middleware.RealIP)
+	mux.Use(middleware.Recoverer)
+
+	RegisterHandlers(mux, s)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.Cfg.ServerAddress, s.Cfg.ServerPort),

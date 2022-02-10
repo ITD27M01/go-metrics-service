@@ -15,6 +15,9 @@ import (
 
 const (
 	updatePathLength = 3
+	gaugeBitSize     = 64
+	counterBase      = 10
+	counterBitSize   = 64
 )
 
 func TestPoolWorker(t *testing.T) {
@@ -48,13 +51,13 @@ func TestReportWorker(t *testing.T) {
 
 		switch {
 		case metricType == metrics.GaugeMetricTypeName:
-			if _, err := strconv.ParseFloat(metricData, 64); err != nil {
+			if _, err := strconv.ParseFloat(metricData, gaugeBitSize); err != nil {
 				t.Errorf("Cannot save provided data: %s", metricData)
 				http.Error(rw, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
 			}
 
 		case metricType == metrics.CounterMetricTypeName:
-			if _, err := strconv.ParseInt(metricData, 10, 64); err != nil {
+			if _, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err != nil {
 				t.Errorf("Cannot save provided data: %s", metricData)
 				http.Error(rw, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
 			}
