@@ -44,8 +44,7 @@ const metricsHTML = `<!DOCTYPE html>
     </tr>
     </table>
 </body>
-</html>
-`
+</html>`
 
 type want struct {
 	code int
