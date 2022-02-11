@@ -27,19 +27,16 @@ const metricsHTML = `<!DOCTYPE html>
         <td style='text-align:center; vertical-align:middle'>test</td>
         <td style='text-align:center; vertical-align:middle'>100</td>
     </tr>
-    
     <tr>
         <td style='text-align:center; vertical-align:middle'>Gauge</td>
         <td style='text-align:center; vertical-align:middle'>testSetGet134</td>
         <td style='text-align:center; vertical-align:middle'>96969.519</td>
     </tr>
-    
     <tr>
         <td style='text-align:center; vertical-align:middle'>Gauge</td>
         <td style='text-align:center; vertical-align:middle'>testSetGet135</td>
         <td style='text-align:center; vertical-align:middle'>156519.255</td>
     </tr>
-    
     <tr>
         <td style='text-align:center; vertical-align:middle'>Counter</td>
         <td style='text-align:center; vertical-align:middle'>test</td>

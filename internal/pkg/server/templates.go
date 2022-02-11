@@ -10,14 +10,14 @@ const (
         <th>Name</th>
         <th>Value</th>
     </tr>
-    {{- range $key, $value := .GaugeMetrics }}
+    {{ range $key, $value := .GaugeMetrics -}}
     <tr>
         <td style='text-align:center; vertical-align:middle'>Gauge</td>
         <td style='text-align:center; vertical-align:middle'>{{ $key }}</td>
         <td style='text-align:center; vertical-align:middle'>{{ $value }}</td>
     </tr>
     {{ end -}}
-    {{- range $key, $value := .CounterMetrics }}
+    {{ range $key, $value := .CounterMetrics -}}
     <tr>
         <td style='text-align:center; vertical-align:middle'>Counter</td>
         <td style='text-align:center; vertical-align:middle'>{{ $key }}</td>
