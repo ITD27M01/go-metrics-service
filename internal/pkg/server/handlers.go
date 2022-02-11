@@ -17,14 +17,14 @@ const (
 )
 
 func RegisterHandlers(mux *chi.Mux, metricsServer *MetricsServer) {
-	mux.Route("/update/", UpdateHandler(metricsServer))
-	mux.Route("/value/", GetMetricHandler(metricsServer))
+	mux.Route("/update/{metricType}/{metricName}/{metricData}", UpdateHandler(metricsServer))
+	mux.Route("/value/{metricType}/{metricName}", GetMetricHandler(metricsServer))
 	mux.Route("/", GetMetricsHandler(metricsServer))
 }
 
 func UpdateHandler(metricsServer *MetricsServer) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/{metricType}/{metricName}/{metricData}", func(w http.ResponseWriter, r *http.Request) {
+		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			metricType := chi.URLParam(r, "metricType")
 			metricName := chi.URLParam(r, "metricName")
 			metricData := chi.URLParam(r, "metricData")
@@ -52,7 +52,7 @@ func UpdateHandler(metricsServer *MetricsServer) func(r chi.Router) {
 
 func GetMetricHandler(metricsServer *MetricsServer) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Get("/{metricType}/{metricName}", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			metricType := chi.URLParam(r, "metricType")
 			metricName := chi.URLParam(r, "metricName")
 
