@@ -1,6 +1,7 @@
 package server
 
 import (
+	_ "embed" // Use templates from file to render pages
 	"fmt"
 	"html/template"
 	"net/http"
@@ -9,6 +10,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
+
+//go:embed assets/index.gohtml
+var metricsTemplateFile string
 
 const (
 	gaugeBitSize   = 64
@@ -98,7 +102,7 @@ func GetMetricHandler(metricsServer *MetricsServer) func(r chi.Router) {
 func GetMetricsHandler(metricsServer *MetricsServer) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			tmpl, err := template.New("index.html").Parse(metricsTemplate)
+			tmpl, err := template.New("index.html").Parse(metricsTemplateFile)
 			if err != nil {
 				http.Error(
 					w,
