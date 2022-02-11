@@ -2,71 +2,119 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"html/template"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
 const (
-	updatePathLength = 4
-	gaugeBitSize     = 64
-	counterBase      = 10
-	counterBitSize   = 64
+	gaugeBitSize   = 64
+	counterBase    = 10
+	counterBitSize = 64
 )
 
-func registerHandlers(mux *http.ServeMux, metricsServer *MetricsServer) {
-	mux.HandleFunc("/update/", UpdateHandler(metricsServer))
+func RegisterHandlers(mux *chi.Mux, metricsServer *MetricsServer) {
+	mux.Route("/update/{metricType}/{metricName}/{metricData}", UpdateHandler(metricsServer))
+	mux.Route("/value/{metricType}/{metricName}", GetMetricHandler(metricsServer))
+	mux.Route("/", GetMetricsHandler(metricsServer))
 }
 
-func UpdateHandler(metricsServer *MetricsServer) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != http.MethodPost {
-			http.Error(
-				w,
-				fmt.Sprintf("Only POST requests are allowed, got %s", req.Method),
-				http.StatusMethodNotAllowed,
-			)
+func UpdateHandler(metricsServer *MetricsServer) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+			metricType := chi.URLParam(r, "metricType")
+			metricName := chi.URLParam(r, "metricName")
+			metricData := chi.URLParam(r, "metricData")
 
-			return
-		}
-		log.Println(req.URL.Path)
-		tokens := strings.FieldsFunc(req.URL.Path, func(c rune) bool {
-			return c == '/'
+			var err error
+			switch {
+			case metricType == metrics.GaugeMetricTypeName:
+				err = updateGageMetric(metricName, metricData, metricsServer.Cfg.MetricsData)
+			case metricType == metrics.CounterMetricTypeName:
+				err = updateCounterMetric(metricName, metricData, metricsServer.Cfg.MetricsData)
+			default:
+				http.Error(
+					w,
+					fmt.Sprintf("Metric type not implemented: %s", metricType),
+					http.StatusNotImplemented,
+				)
+			}
+
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
+			}
 		})
-		if len(tokens) != updatePathLength {
-			http.Error(
-				w,
-				fmt.Sprintf("Metric value not provided or url malformed: %s", req.URL.Path),
-				http.StatusNotFound,
-			)
+	}
+}
 
-			return
-		}
+func GetMetricHandler(metricsServer *MetricsServer) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			metricType := chi.URLParam(r, "metricType")
+			metricName := chi.URLParam(r, "metricName")
 
-		var err error
-		metricType := tokens[1]
-		metricName := tokens[2]
-		metricData := tokens[3]
+			var ok bool
+			var stringifyMetricData string
+			switch {
+			case metricType == metrics.GaugeMetricTypeName:
+				var metricData metrics.Gauge
+				metricData, ok = metricsServer.Cfg.MetricsData.GaugeMetrics[metricName]
+				stringifyMetricData = fmt.Sprintf("%g", metricData)
+			case metricType == metrics.CounterMetricTypeName:
+				var metricData metrics.Counter
+				metricData, ok = metricsServer.Cfg.MetricsData.CounterMetrics[metricName]
+				stringifyMetricData = fmt.Sprintf("%d", metricData)
+			default:
+				http.Error(
+					w,
+					fmt.Sprintf("Metric type not implemented: %s", metricType),
+					http.StatusNotImplemented,
+				)
+				return
+			}
+			if ok {
+				_, err := w.Write([]byte(stringifyMetricData))
+				if err != nil {
+					http.Error(
+						w,
+						fmt.Sprintf("Something went wrong during metric get: %s", metricName),
+						http.StatusInternalServerError,
+					)
+				}
+			} else {
+				http.Error(
+					w,
+					fmt.Sprintf("Metric not found: %s", metricName),
+					http.StatusNotFound,
+				)
+			}
+		})
+	}
+}
 
-		switch {
-		case metricType == metrics.GaugeMetricTypeName:
-			err = updateGageMetric(metricName, metricData, metricsServer.Cfg.MetricsData)
-		case metricType == metrics.CounterMetricTypeName:
-			err = updateCounterMetric(metricName, metricData, metricsServer.Cfg.MetricsData)
-		default:
-			http.Error(
-				w,
-				fmt.Sprintf("Metric type not implemented: %s", metricType),
-				http.StatusNotImplemented,
-			)
-		}
-
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
-		}
+func GetMetricsHandler(metricsServer *MetricsServer) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			tmpl, err := template.New("index.html").Parse(metricsTemplate)
+			if err != nil {
+				http.Error(
+					w,
+					"Something went wrong during page template rendering",
+					http.StatusInternalServerError,
+				)
+			}
+			err = tmpl.Execute(w, metricsServer.Cfg.MetricsData)
+			if err != nil {
+				http.Error(
+					w,
+					"Something went wrong during metrics get",
+					http.StatusInternalServerError,
+				)
+			}
+		})
 	}
 }
 
