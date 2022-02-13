@@ -19,7 +19,7 @@ const (
 )
 
 func main() {
-	mtr := metrics.NewMetrics()
+	mtr := metrics.NewInMemoryStore()
 
 	pollWorker := workers.PollerWorker{Cfg: workers.PollerConfig{PollInterval: pollInterval}}
 	pollContext, cancelCollector := context.WithCancel(context.Background())

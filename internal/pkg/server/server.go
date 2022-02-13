@@ -14,7 +14,7 @@ import (
 type Config struct {
 	ServerAddress string
 	ServerPort    string
-	MetricsData   *metrics.Metrics
+	MetricsStore  metrics.Store
 }
 
 type MetricsServer struct {
@@ -35,7 +35,7 @@ func (s *MetricsServer) StartListener(ctx context.Context) {
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
 
-	RegisterHandlers(mux, s)
+	RegisterHandlers(mux, s.Cfg.MetricsStore)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", s.Cfg.ServerAddress, s.Cfg.ServerPort),

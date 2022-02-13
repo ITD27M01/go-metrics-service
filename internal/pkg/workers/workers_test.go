@@ -21,15 +21,17 @@ const (
 )
 
 func TestPoolWorker(t *testing.T) {
-	mtr := metrics.NewMetrics()
+	mtr := metrics.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
-	if mtr.CounterMetrics["PollCount"] != 1 {
-		t.Errorf("Counter wasn't incremented: %d", mtr.CounterMetrics["PollCount"])
+
+	counterMetric, _ := mtr.GetCounterMetric("PollCount")
+	if counterMetric != 1 {
+		t.Errorf("Counter wasn't incremented: %d", counterMetric)
 	}
 }
 
 func TestReportWorker(t *testing.T) {
-	mtr := metrics.NewMetrics()
+	mtr := metrics.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
