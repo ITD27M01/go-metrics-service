@@ -23,8 +23,10 @@ const (
 func TestPoolWorker(t *testing.T) {
 	mtr := metrics.NewMetrics()
 	workers.UpdateMemStatsMetrics(mtr)
-	if mtr.CounterMetrics["PollCount"] != 1 {
-		t.Errorf("Counter wasn't incremented: %d", mtr.CounterMetrics["PollCount"])
+
+	counterMetric, _ := mtr.GetCounterMetric("PollCount")
+	if counterMetric != 1 {
+		t.Errorf("Counter wasn't incremented: %d", counterMetric)
 	}
 }
 

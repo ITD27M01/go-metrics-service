@@ -16,7 +16,7 @@ func main() {
 		Cfg: server.Config{
 			ServerPort:    "8080",
 			ServerAddress: "0.0.0.0",
-			MetricsData:   metrics.NewMetrics(),
+			MetricsStore:  metrics.NewMetrics(),
 		}}
 
 	go metricsServer.StartListener(context.Background())

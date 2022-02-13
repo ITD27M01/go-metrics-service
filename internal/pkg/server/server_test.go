@@ -188,13 +188,8 @@ var tests = []test{
 }
 
 func TestRouter(t *testing.T) {
-	metricsServer := &server.MetricsServer{
-		Cfg: server.Config{
-			MetricsData: metrics.NewMetrics(),
-		}}
-
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, metricsServer)
+	server.RegisterHandlers(mux, metrics.NewMetrics())
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 

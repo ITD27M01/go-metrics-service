@@ -21,7 +21,7 @@ type ReportWorker struct {
 	Cfg ReporterConfig
 }
 
-func (rw *ReportWorker) Run(ctx context.Context, mtr *metrics.Metrics) {
+func (rw *ReportWorker) Run(ctx context.Context, mtr metrics.Store) {
 	reporterContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -42,8 +42,8 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr *metrics.Metrics) {
 	}
 }
 
-func SendReport(ctx context.Context, mtr *metrics.Metrics, serverURL string, client *http.Client) {
-	for k, v := range mtr.GaugeMetrics {
+func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client *http.Client) {
+	for k, v := range mtr.GetGaugeMetrics() {
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%f", serverURL, metrics.GaugeMetricTypeName, k, v)
 		err := updateMetric(ctx, metricUpdateURL, client)
 		if err != nil {
@@ -51,7 +51,7 @@ func SendReport(ctx context.Context, mtr *metrics.Metrics, serverURL string, cli
 		}
 	}
 
-	for k, v := range mtr.CounterMetrics {
+	for k, v := range mtr.GetCounterMetrics() {
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%d", serverURL, metrics.CounterMetricTypeName, k, v)
 		err := updateMetric(ctx, metricUpdateURL, client)
 		if err != nil {
