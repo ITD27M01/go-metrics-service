@@ -21,7 +21,7 @@ const (
 )
 
 func TestPoolWorker(t *testing.T) {
-	mtr := metrics.NewMetrics()
+	mtr := metrics.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
 	counterMetric, _ := mtr.GetCounterMetric("PollCount")
@@ -31,7 +31,7 @@ func TestPoolWorker(t *testing.T) {
 }
 
 func TestReportWorker(t *testing.T) {
-	mtr := metrics.NewMetrics()
+	mtr := metrics.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {

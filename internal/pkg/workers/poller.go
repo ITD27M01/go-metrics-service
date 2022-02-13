@@ -38,8 +38,7 @@ func UpdateMemStatsMetrics(mtr metrics.Store) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	poolCount, _ := mtr.GetCounterMetric("PollCount")
-	mtr.UpdateCounterMetric("PollCount", poolCount+1)
+	mtr.UpdateCounterMetric("PollCount", 1)
 
 	mtr.UpdateGaugeMetric("Alloc", metrics.Gauge(memStats.Alloc))
 	mtr.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
