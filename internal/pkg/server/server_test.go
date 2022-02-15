@@ -205,10 +205,8 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
-
 	assert.Equal(t, testData.want.code, resp.StatusCode)
 	require.NoError(t, err)
-	defer resp.Body.Close()
 
 	if testData.method == http.MethodGet {
 		respBody, err := ioutil.ReadAll(resp.Body)
