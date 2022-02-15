@@ -42,9 +42,7 @@ func main() {
 		syscall.SIGQUIT,
 	)
 
-	<-signalChanel
-
-	log.Println("Stop signal received, stopping collector worker...")
+	log.Printf("%v signal received, stopping collector worker", <-signalChanel)
 	cancelCollector()
 
 	log.Println("...stopping reporter worker")
