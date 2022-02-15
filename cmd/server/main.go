@@ -28,8 +28,6 @@ func main() {
 		syscall.SIGQUIT,
 	)
 
-	<-signalChanel
-
-	log.Println("Stop signal received, graceful shutdown the server...")
+	log.Printf("%v signal received, graceful shutdown the server", <-signalChanel)
 	metricsServer.StopListener()
 }
