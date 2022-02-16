@@ -68,6 +68,7 @@ func UpdateMemStatsMetrics(mtr metrics.Store) {
 	mtr.UpdateGaugeMetric("StackInuse", metrics.Gauge(memStats.StackInuse))
 	mtr.UpdateGaugeMetric("StackSys", metrics.Gauge(memStats.StackSys))
 	mtr.UpdateGaugeMetric("Sys", metrics.Gauge(memStats.Sys))
+	mtr.UpdateGaugeMetric("TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
 
 	mtr.UpdateGaugeMetric("RandomValue", metrics.Gauge(rand.Int63()))
 }
