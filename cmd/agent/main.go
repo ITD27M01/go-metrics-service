@@ -27,7 +27,7 @@ func main() {
 
 	reportWorker := workers.ReportWorker{
 		Cfg: workers.ReporterConfig{
-			ServerURL:      "http://127.0.0.1:8080/update",
+			ServerURL:      "http://127.0.0.1:8080/update/",
 			ServerTimeout:  serverTimeout,
 			ReportInterval: reportInterval,
 		}}

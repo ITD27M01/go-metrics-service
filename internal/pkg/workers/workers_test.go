@@ -2,6 +2,7 @@ package workers_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -75,4 +76,43 @@ func TestReportWorker(t *testing.T) {
 	defer server.Close()
 
 	workers.SendReport(context.Background(), mtr, server.URL, server.Client())
+}
+
+func TestSendReportJSONWorker(t *testing.T) {
+	mtr := metrics.NewInMemoryStore()
+	workers.UpdateMemStatsMetrics(mtr)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var metric metrics.Metric
+		err := json.NewDecoder(r.Body).Decode(&metric)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
+
+			return
+		}
+
+		switch {
+		case metric.MType == metrics.GaugeMetricTypeName:
+			if m, ok := mtr.GetGaugeMetric(metric.ID); !ok || m != *metric.Value {
+				t.Errorf("Metric data mismatch: %f and %f", m, *metric.Value)
+				http.Error(w, fmt.Sprintf("Metric data mismatch: %f and %f", m, *metric.Value), http.StatusBadRequest)
+			}
+
+		case metric.MType == metrics.CounterMetricTypeName:
+			if m, ok := mtr.GetCounterMetric(metric.ID); !ok || m != *metric.Delta {
+				t.Errorf("Metric data mismatch: %d and %d", m, *metric.Delta)
+				http.Error(w, fmt.Sprintf("Metric data mismatch: %d and %d", m, *metric.Delta), http.StatusBadRequest)
+			}
+		default:
+			t.Errorf("Metric type not implemented: %s", metric.MType)
+			http.Error(
+				w,
+				fmt.Sprintf("Metric type not implemented: %s", metric.MType),
+				http.StatusNotImplemented,
+			)
+		}
+	}))
+	defer server.Close()
+
+	workers.SendReportJSON(context.Background(), mtr, server.URL, server.Client())
 }
