@@ -40,6 +40,7 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr metrics.Store) {
 		case <-reportTicker.C:
 			SendReport(reporterContext, mtr, rw.Cfg.ServerURL, &client)
 			SendReportJSON(reporterContext, mtr, rw.Cfg.ServerURL, &client)
+			resetCounters(mtr)
 		}
 	}
 }
@@ -48,7 +49,7 @@ func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	for k, v := range mtr.GetGaugeMetrics() {
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%f", serverURL, metrics.GaugeMetricTypeName, k, v)
-		err := updateMetric(ctx, metricUpdateURL, client)
+		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
 			log.Println(err)
 		}
@@ -56,7 +57,7 @@ func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client
 
 	for k, v := range mtr.GetCounterMetrics() {
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%d", serverURL, metrics.CounterMetricTypeName, k, v)
-		err := updateMetric(ctx, metricUpdateURL, client)
+		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
 			log.Println(err)
 		}
@@ -66,32 +67,34 @@ func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client
 func SendReportJSON(ctx context.Context, mtr metrics.Store, serverURL string, client *http.Client) {
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
-	for k, v := range mtr.GetGaugeMetrics() {
+	for k := range mtr.GetGaugeMetrics() {
+		v, _ := mtr.GetGaugeMetric(k)
 		metric := &metrics.Metric{
 			ID:    k,
 			MType: metrics.GaugeMetricTypeName,
 			Value: &v,
 		}
-		err := updateMetricJSON(ctx, updateURL, client, metric)
+		err := sendMetricJSON(ctx, updateURL, client, metric)
 		if err != nil {
 			log.Println(err)
 		}
 	}
 
-	for k, v := range mtr.GetCounterMetrics() {
+	for k := range mtr.GetCounterMetrics() {
+		v, _ := mtr.GetCounterMetric(k)
 		metric := &metrics.Metric{
 			ID:    k,
 			MType: metrics.CounterMetricTypeName,
 			Delta: &v,
 		}
-		err := updateMetricJSON(ctx, updateURL, client, metric)
+		err := sendMetricJSON(ctx, updateURL, client, metric)
 		if err != nil {
 			log.Println(err)
 		}
 	}
 }
 
-func updateMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
+func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
 	log.Printf("Update metric: %s", metricUpdateURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 	if err != nil {
@@ -122,7 +125,7 @@ func updateMetric(ctx context.Context, metricUpdateURL string, client *http.Clie
 	return nil
 }
 
-func updateMetricJSON(ctx context.Context, serverURL string, client *http.Client, metric *metrics.Metric) error {
+func sendMetricJSON(ctx context.Context, serverURL string, client *http.Client, metric *metrics.Metric) error {
 	log.Printf("Update metric: %s", metric.ID)
 
 	body, err := metric.EncodeMetric()
@@ -153,4 +156,8 @@ func updateMetricJSON(ctx context.Context, serverURL string, client *http.Client
 	}
 
 	return nil
+}
+
+func resetCounters(mtr metrics.Store) {
+	mtr.ResetCounterMetric("PollCount")
 }

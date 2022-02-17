@@ -15,6 +15,7 @@ type Counter int64
 
 type Store interface {
 	UpdateCounterMetric(name string, value Counter)
+	ResetCounterMetric(name string)
 	UpdateGaugeMetric(name string, value Gauge)
 	GetGaugeMetric(name string) (Gauge, bool)
 	GetCounterMetric(name string) (Counter, bool)

@@ -9,6 +9,10 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
+const (
+	counterIncrement = 1
+)
+
 type PollerConfig struct {
 	PollInterval time.Duration
 }
@@ -38,7 +42,7 @@ func UpdateMemStatsMetrics(mtr metrics.Store) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	mtr.UpdateCounterMetric("PollCount", 1)
+	mtr.UpdateCounterMetric("PollCount", counterIncrement)
 
 	mtr.UpdateGaugeMetric("Alloc", metrics.Gauge(memStats.Alloc))
 	mtr.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
