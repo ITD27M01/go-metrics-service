@@ -1,8 +1,11 @@
 package metrics
 
+import "sync"
+
 type InMemoryStore struct {
 	gaugeMetrics   map[string]Gauge
 	counterMetrics map[string]Counter
+	mu             sync.Mutex
 }
 
 func NewInMemoryStore() *InMemoryStore {
@@ -14,12 +17,22 @@ func NewInMemoryStore() *InMemoryStore {
 	return &m
 }
 
-func (m *InMemoryStore) UpdateGaugeMetric(metricName string, metricData Gauge) {
-	m.gaugeMetrics[metricName] = metricData
+func (m *InMemoryStore) UpdateCounterMetric(metricName string, metricData Counter) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.counterMetrics[metricName] += metricData
 }
 
-func (m *InMemoryStore) UpdateCounterMetric(metricName string, metricData Counter) {
-	m.counterMetrics[metricName] += metricData
+func (m *InMemoryStore) ResetCounterMetric(metricName string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.counterMetrics[metricName] = 0
+}
+
+func (m *InMemoryStore) UpdateGaugeMetric(metricName string, metricData Gauge) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.gaugeMetrics[metricName] = metricData
 }
 
 func (m *InMemoryStore) GetGaugeMetric(metricName string) (Gauge, bool) {

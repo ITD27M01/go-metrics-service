@@ -58,6 +58,46 @@ type test struct {
 	want   want
 }
 
+type testJSON struct {
+	name   string
+	method string
+	url    string
+	metric *metrics.Metric
+	want   want
+}
+
+var gaugeValue metrics.Gauge = 96969.519
+
+var testsJSON = []testJSON{
+	{
+		name:   "Post JSON metric",
+		method: http.MethodPost,
+		url:    "/update/",
+		metric: &metrics.Metric{
+			ID:    "Alloc",
+			MType: metrics.GaugeMetricTypeName,
+			Value: &gaugeValue,
+		},
+		want: want{
+			code: http.StatusOK,
+			data: "",
+		},
+	},
+	{
+		name:   "Get JSON metric",
+		method: http.MethodPost,
+		url:    "/value/",
+		metric: &metrics.Metric{
+			ID:    "Alloc",
+			MType: metrics.GaugeMetricTypeName,
+		},
+		want: want{
+			code: http.StatusOK,
+			data: "{\"id\":\"Alloc\",\"type\":\"gauge\",\"value\":96969.519}\n",
+		},
+	},
+}
+
 var tests = []test{
 	{
 		name:   "OK gauge update",
@@ -198,6 +238,12 @@ func TestRouter(t *testing.T) {
 			testRequest(t, ts, tt)
 		})
 	}
+
+	for _, tt := range testsJSON {
+		t.Run(tt.name, func(t *testing.T) {
+			testJSONRequest(t, ts, tt)
+		})
+	}
 }
 
 func testRequest(t *testing.T, ts *httptest.Server, testData test) {
@@ -213,5 +259,24 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		assert.Equal(t, testData.want.data, string(respBody))
 		require.NoError(t, err)
+	}
+}
+
+func testJSONRequest(t *testing.T, ts *httptest.Server, testData testJSON) {
+	body, _ := testData.metric.EncodeMetric()
+	req, err := http.NewRequest(testData.method, ts.URL+testData.url, body)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.Equal(t, testData.want.code, resp.StatusCode)
+	require.NoError(t, err)
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	assert.Equal(t, testData.want.data, string(respBody))
+	require.NoError(t, err)
+
+	err = resp.Body.Close()
+	if err != nil {
+		return
 	}
 }
