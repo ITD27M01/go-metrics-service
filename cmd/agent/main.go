@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
 )
@@ -21,16 +22,31 @@ const (
 func main() {
 	mtr := metrics.NewInMemoryStore()
 
-	pollWorker := workers.PollerWorker{Cfg: workers.PollerConfig{PollInterval: pollInterval}}
+	pollWorkerConfig := workers.PollerConfig{
+		PollInterval: pollInterval,
+	}
+	err := env.Parse(&pollWorkerConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pollWorker := workers.PollerWorker{Cfg: pollWorkerConfig}
 	pollContext, cancelCollector := context.WithCancel(context.Background())
 	go pollWorker.Run(pollContext, mtr)
 
-	reportWorker := workers.ReportWorker{
-		Cfg: workers.ReporterConfig{
-			ServerURL:      "http://127.0.0.1:8080/update/",
-			ServerTimeout:  serverTimeout,
-			ReportInterval: reportInterval,
-		}}
+	reportWorkerConfig := workers.ReporterConfig{
+		ServerScheme:   "http",
+		ServerAddress:  "127.0.0.1:8080",
+		ServerPath:     "/update/",
+		ServerTimeout:  serverTimeout,
+		ReportInterval: reportInterval,
+	}
+	err = env.Parse(&reportWorkerConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	reportWorker := workers.ReportWorker{Cfg: reportWorkerConfig}
 
 	reportContext, cancelReporter := context.WithCancel(context.Background())
 	go reportWorker.Run(reportContext, mtr)

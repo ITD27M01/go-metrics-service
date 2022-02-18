@@ -14,7 +14,7 @@ const (
 )
 
 type PollerConfig struct {
-	PollInterval time.Duration
+	PollInterval time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
 }
 
 type PollerWorker struct {
