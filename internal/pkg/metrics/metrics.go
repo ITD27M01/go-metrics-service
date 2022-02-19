@@ -13,16 +13,6 @@ const (
 type Gauge float64
 type Counter int64
 
-type Store interface {
-	UpdateCounterMetric(name string, value Counter)
-	ResetCounterMetric(name string)
-	UpdateGaugeMetric(name string, value Gauge)
-	GetGaugeMetric(name string) (Gauge, bool)
-	GetCounterMetric(name string) (Counter, bool)
-	GetGaugeMetrics() map[string]Gauge
-	GetCounterMetrics() map[string]Counter
-}
-
 type Metric struct {
 	ID    string   `json:"id"`              // Имя метрики
 	MType string   `json:"type"`            // Параметр, принимающий значение gauge или counter

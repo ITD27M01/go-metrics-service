@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
 )
 
@@ -20,7 +20,7 @@ const (
 )
 
 func main() {
-	mtr := metrics.NewInMemoryStore()
+	mtr := repository.NewInMemoryStore()
 
 	pollWorkerConfig := workers.PollerConfig{
 		PollInterval: pollInterval,

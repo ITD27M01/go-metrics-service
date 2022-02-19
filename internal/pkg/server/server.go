@@ -4,53 +4,53 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
 
 type Config struct {
-	ServerAddress string `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
-	MetricsStore  metrics.Store
+	ServerAddress string        `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
+	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
+	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
+	Restore       bool          `env:"RESTORE" envDefault:"true"`
+
+	MetricsStore repository.Store
 }
 
 type MetricsServer struct {
-	Cfg      Config
+	Cfg      *Config
 	context  context.Context
 	listener *http.Server
 }
 
-func (s *MetricsServer) StartListener(ctx context.Context) {
+func (s *MetricsServer) Start(ctx context.Context) {
 	serverContext, serverCancel := context.WithCancel(ctx)
 	defer serverCancel()
-
 	s.context = serverContext
 
-	mux := chi.NewRouter()
-	mux.Use(middleware.Logger)
-	mux.Use(middleware.RequestID)
-	mux.Use(middleware.RealIP)
-	mux.Use(middleware.Recoverer)
+	initStore(s.Cfg)
+	go runPreserver(serverContext, s.Cfg.MetricsStore, s.Cfg.Restore)
 
-	RegisterHandlers(mux, s.Cfg.MetricsStore)
+	go s.startListener()
+	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
 
-	httpServer := &http.Server{
-		Addr:    s.Cfg.ServerAddress,
-		Handler: mux,
-	}
-
-	s.listener = httpServer
-
-	if err := s.listener.ListenAndServe(); err != http.ErrServerClosed {
-		log.Printf("HTTP server ListenAndServe: %v", err)
-	}
-	log.Println("HTTP server ListenAndServe exit")
+	signalChannel := getSignalChannel()
+	signalName := <-signalChannel
+	log.Printf("%s signal received, graceful shutdown the server", signalName)
+	s.stopListener()
 }
 
-func (s *MetricsServer) StopListener() {
-	err := s.listener.Shutdown(s.context)
-	if err != nil {
-		log.Printf("HTTP server ListenAndServe shutdown error: %v", err)
-	}
+func getSignalChannel() chan os.Signal {
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	return signalChannel
 }

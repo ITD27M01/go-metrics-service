@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
 
 type ReporterConfig struct {
@@ -24,7 +25,7 @@ type ReportWorker struct {
 	Cfg ReporterConfig
 }
 
-func (rw *ReportWorker) Run(ctx context.Context, mtr metrics.Store) {
+func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	reporterContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -50,18 +51,16 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr metrics.Store) {
 	}
 }
 
-func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client *http.Client) {
+func SendReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	serverURL = strings.TrimSuffix(serverURL, "/")
-	for k, v := range mtr.GetGaugeMetrics() {
-		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%f", serverURL, metrics.GaugeMetricTypeName, k, v)
-		err := sendMetric(ctx, metricUpdateURL, client)
-		if err != nil {
-			log.Println(err)
+	var stringifyMetricValue string
+	for _, v := range mtr.GetMetrics() {
+		if v.MType == metrics.GaugeMetricTypeName {
+			stringifyMetricValue = fmt.Sprintf("%f", *v.Value)
+		} else {
+			stringifyMetricValue = fmt.Sprintf("%d", *v.Delta)
 		}
-	}
-
-	for k, v := range mtr.GetCounterMetrics() {
-		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%d", serverURL, metrics.CounterMetricTypeName, k, v)
+		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, metrics.GaugeMetricTypeName, v.MType, stringifyMetricValue)
 		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
 			log.Println(err)
@@ -69,30 +68,11 @@ func SendReport(ctx context.Context, mtr metrics.Store, serverURL string, client
 	}
 }
 
-func SendReportJSON(ctx context.Context, mtr metrics.Store, serverURL string, client *http.Client) {
+func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
-	for k := range mtr.GetGaugeMetrics() {
-		v, _ := mtr.GetGaugeMetric(k)
-		metric := &metrics.Metric{
-			ID:    k,
-			MType: metrics.GaugeMetricTypeName,
-			Value: &v,
-		}
-		err := sendMetricJSON(ctx, updateURL, client, metric)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
-	for k := range mtr.GetCounterMetrics() {
-		v, _ := mtr.GetCounterMetric(k)
-		metric := &metrics.Metric{
-			ID:    k,
-			MType: metrics.CounterMetricTypeName,
-			Delta: &v,
-		}
-		err := sendMetricJSON(ctx, updateURL, client, metric)
+	for _, v := range mtr.GetMetrics() {
+		err := sendMetricJSON(ctx, updateURL, client, v)
 		if err != nil {
 			log.Println(err)
 		}
@@ -163,6 +143,6 @@ func sendMetricJSON(ctx context.Context, serverURL string, client *http.Client, 
 	return nil
 }
 
-func resetCounters(mtr metrics.Store) {
+func resetCounters(mtr repository.Store) {
 	mtr.ResetCounterMetric("PollCount")
 }

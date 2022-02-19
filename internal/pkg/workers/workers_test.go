@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
 )
 
@@ -22,17 +23,17 @@ const (
 )
 
 func TestPoolWorker(t *testing.T) {
-	mtr := metrics.NewInMemoryStore()
+	mtr := repository.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
-	counterMetric, _ := mtr.GetCounterMetric("PollCount")
-	if counterMetric != 1 {
-		t.Errorf("Counter wasn't incremented: %d", counterMetric)
+	counterMetric, _ := mtr.GetMetric("PollCount")
+	if *counterMetric.Delta != 1 {
+		t.Errorf("Counter wasn't incremented: %d", *counterMetric.Delta)
 	}
 }
 
 func TestReportWorker(t *testing.T) {
-	mtr := metrics.NewInMemoryStore()
+	mtr := repository.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -79,7 +80,7 @@ func TestReportWorker(t *testing.T) {
 }
 
 func TestSendReportJSONWorker(t *testing.T) {
-	mtr := metrics.NewInMemoryStore()
+	mtr := repository.NewInMemoryStore()
 	workers.UpdateMemStatsMetrics(mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -93,15 +94,15 @@ func TestSendReportJSONWorker(t *testing.T) {
 
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			if m, ok := mtr.GetGaugeMetric(metric.ID); !ok || m != *metric.Value {
-				t.Errorf("Metric data mismatch: %f and %f", m, *metric.Value)
-				http.Error(w, fmt.Sprintf("Metric data mismatch: %f and %f", m, *metric.Value), http.StatusBadRequest)
+			if m, ok := mtr.GetMetric(metric.ID); !ok || *m.Value != *metric.Value {
+				t.Errorf("Metric data mismatch: %f and %f", *m.Value, *metric.Value)
+				http.Error(w, fmt.Sprintf("Metric data mismatch: %f and %f", *m.Value, *metric.Value), http.StatusBadRequest)
 			}
 
 		case metric.MType == metrics.CounterMetricTypeName:
-			if m, ok := mtr.GetCounterMetric(metric.ID); !ok || m != *metric.Delta {
-				t.Errorf("Metric data mismatch: %d and %d", m, *metric.Delta)
-				http.Error(w, fmt.Sprintf("Metric data mismatch: %d and %d", m, *metric.Delta), http.StatusBadRequest)
+			if m, ok := mtr.GetMetric(metric.ID); !ok || *m.Delta != *metric.Delta {
+				t.Errorf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta)
+				http.Error(w, fmt.Sprintf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta), http.StatusBadRequest)
 			}
 		default:
 			t.Errorf("Metric type not implemented: %s", metric.MType)

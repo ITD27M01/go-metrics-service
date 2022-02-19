@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
 
 //go:embed assets/index.gohtml
@@ -22,36 +23,31 @@ const (
 	counterBitSize = 64
 )
 
-func RegisterHandlers(mux *chi.Mux, metricsStore metrics.Store) {
+func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store) {
 	mux.Route("/update/", UpdateHandler(metricsStore))
 	mux.Route("/value/", GetMetricHandler(metricsStore))
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
 
-func UpdateHandler(metricsStore metrics.Store) func(r chi.Router) {
+func UpdateHandler(metricsStore repository.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", updateHandlerJSON(metricsStore))
 		r.Post("/{metricType}/{metricName}/{metricData}", updateHandlerPlain(metricsStore))
 	}
 }
 
-func GetMetricHandler(metricsStore metrics.Store) func(r chi.Router) {
+func GetMetricHandler(metricsStore repository.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", retrieveHandlerJSON(metricsStore))
 		r.Get("/{metricType}/{metricName}", getHandlerPlain(metricsStore))
 	}
 }
 
-func GetMetricsHandler(metricsStore metrics.Store) func(r chi.Router) {
+func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			metricsData := struct {
-				Gauge   map[string]metrics.Gauge
-				Counter map[string]metrics.Counter
-			}{
-				Gauge:   metricsStore.GetGaugeMetrics(),
-				Counter: metricsStore.GetCounterMetrics(),
-			}
+			metricsData := metricsStore.GetMetrics()
+
 			tmpl, err := template.New("index.html").Parse(metricsTemplateFile)
 			if err != nil {
 				http.Error(
@@ -72,7 +68,7 @@ func GetMetricsHandler(metricsStore metrics.Store) func(r chi.Router) {
 	}
 }
 
-func updateHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter, r *http.Request) {
+func updateHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
 		err := json.NewDecoder(r.Body).Decode(&metric)
@@ -97,7 +93,7 @@ func updateHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter, r
 	}
 }
 
-func updateHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, r *http.Request) {
+func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metricType")
 		metricName := chi.URLParam(r, "metricName")
@@ -122,7 +118,7 @@ func updateHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, 
 	}
 }
 
-func retrieveHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter, r *http.Request) {
+func retrieveHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
 		err := json.NewDecoder(r.Body).Decode(&metric)
@@ -134,9 +130,9 @@ func retrieveHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter,
 
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			metricData, ok := metricsStore.GetGaugeMetric(metric.ID)
-			if ok {
-				metric.Value = &metricData
+			metricData, ok := metricsStore.GetMetric(metric.ID)
+			if ok && metricData.Value != nil {
+				metric.Value = metricData.Value
 			} else {
 				http.Error(
 					w,
@@ -147,9 +143,9 @@ func retrieveHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter,
 				return
 			}
 		case metric.MType == metrics.CounterMetricTypeName:
-			metricData, ok := metricsStore.GetCounterMetric(metric.ID)
-			if ok {
-				metric.Delta = &metricData
+			metricData, ok := metricsStore.GetMetric(metric.ID)
+			if ok && metricData.Delta != nil {
+				metric.Delta = metricData.Delta
 			} else {
 				http.Error(
 					w,
@@ -182,7 +178,7 @@ func retrieveHandlerJSON(metricsStore metrics.Store) func(w http.ResponseWriter,
 	}
 }
 
-func getHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, r *http.Request) {
+func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metricType")
 		metricName := chi.URLParam(r, "metricName")
@@ -190,10 +186,9 @@ func getHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, r *
 		var stringifyMetricData string
 		switch {
 		case metricType == metrics.GaugeMetricTypeName:
-			var metricData metrics.Gauge
-			metricData, ok := metricsStore.GetGaugeMetric(metricName)
-			if ok {
-				stringifyMetricData = fmt.Sprintf("%g", metricData)
+			metricData, ok := metricsStore.GetMetric(metricName)
+			if ok && metricData.Value != nil {
+				stringifyMetricData = fmt.Sprintf("%g", *metricData.Value)
 			} else {
 				http.Error(
 					w,
@@ -205,10 +200,9 @@ func getHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, r *
 			}
 
 		case metricType == metrics.CounterMetricTypeName:
-			var metricData metrics.Counter
-			metricData, ok := metricsStore.GetCounterMetric(metricName)
-			if ok {
-				stringifyMetricData = fmt.Sprintf("%d", metricData)
+			metricData, ok := metricsStore.GetMetric(metricName)
+			if ok && metricData.Delta != nil {
+				stringifyMetricData = fmt.Sprintf("%d", *metricData.Delta)
 			} else {
 				http.Error(
 					w,
@@ -239,7 +233,7 @@ func getHandlerPlain(metricsStore metrics.Store) func(w http.ResponseWriter, r *
 	}
 }
 
-func updateGaugeMetric(metricName string, metricData string, metricsStore metrics.Store) error {
+func updateGaugeMetric(metricName string, metricData string, metricsStore repository.Store) error {
 	if parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize); err == nil {
 		metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
 	} else {
@@ -249,7 +243,7 @@ func updateGaugeMetric(metricName string, metricData string, metricsStore metric
 	return nil
 }
 
-func updateCounterMetric(metricName string, metricData string, metricsStore metrics.Store) error {
+func updateCounterMetric(metricName string, metricData string, metricsStore repository.Store) error {
 	if parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err == nil {
 		metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
 	} else {
