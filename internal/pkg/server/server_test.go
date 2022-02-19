@@ -246,6 +246,30 @@ func TestRouter(t *testing.T) {
 	}
 }
 
+func testJSONRequest(t *testing.T, ts *httptest.Server, testData testJSON) {
+	body, _ := testData.metric.EncodeMetric()
+	req, err := http.NewRequest(testData.method, ts.URL+testData.url, body)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.Equal(t, testData.want.code, resp.StatusCode)
+	require.NoError(t, err)
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if string(respBody) != "" {
+		assert.JSONEq(t, testData.want.data, string(respBody))
+	} else {
+		assert.Equal(t, testData.want.data, string(respBody))
+	}
+
+	require.NoError(t, err)
+
+	err = resp.Body.Close()
+	if err != nil {
+		return
+	}
+}
+
 func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 	req, err := http.NewRequest(testData.method, ts.URL+testData.metric, nil)
 	require.NoError(t, err)
@@ -259,24 +283,5 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		assert.Equal(t, testData.want.data, string(respBody))
 		require.NoError(t, err)
-	}
-}
-
-func testJSONRequest(t *testing.T, ts *httptest.Server, testData testJSON) {
-	body, _ := testData.metric.EncodeMetric()
-	req, err := http.NewRequest(testData.method, ts.URL+testData.url, body)
-	require.NoError(t, err)
-
-	resp, err := http.DefaultClient.Do(req)
-	assert.Equal(t, testData.want.code, resp.StatusCode)
-	require.NoError(t, err)
-
-	respBody, err := ioutil.ReadAll(resp.Body)
-	assert.Equal(t, testData.want.data, string(respBody))
-	require.NoError(t, err)
-
-	err = resp.Body.Close()
-	if err != nil {
-		return
 	}
 }

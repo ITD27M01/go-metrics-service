@@ -13,9 +13,11 @@ import (
 )
 
 type ReporterConfig struct {
-	ServerURL      string
+	ServerScheme   string `env:"SERVER_SCHEME" envDefault:"http"`
+	ServerAddress  string `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
+	ServerPath     string `env:"SERVER_PATH" envDefault:"/update/"`
 	ServerTimeout  time.Duration
-	ReportInterval time.Duration
+	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
 }
 
 type ReportWorker struct {
@@ -33,13 +35,16 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr metrics.Store) {
 		Timeout: rw.Cfg.ServerTimeout,
 	}
 
+	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress + rw.Cfg.ServerPath
+
 	for {
 		select {
 		case <-reporterContext.Done():
 			return
 		case <-reportTicker.C:
-			SendReport(reporterContext, mtr, rw.Cfg.ServerURL, &client)
-			SendReportJSON(reporterContext, mtr, rw.Cfg.ServerURL, &client)
+			// TODO(igortiunov): Think about storage lock/unlock before/after report
+			SendReport(reporterContext, mtr, serverURL, &client)
+			SendReportJSON(reporterContext, mtr, serverURL, &client)
 			resetCounters(mtr)
 		}
 	}

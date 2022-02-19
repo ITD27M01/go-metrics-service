@@ -7,19 +7,25 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
 )
 
 func main() {
-	metricsServer := server.MetricsServer{
-		Cfg: server.Config{
-			ServerPort:    "8080",
-			ServerAddress: "0.0.0.0",
-			MetricsStore:  metrics.NewInMemoryStore(),
-		}}
+	metricsServerConfig := server.Config{
+		ServerAddress: "0.0.0.0:8080",
+		MetricsStore:  metrics.NewInMemoryStore(),
+	}
+	err := env.Parse(&metricsServerConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	metricsServer := server.MetricsServer{Cfg: metricsServerConfig}
 
 	go metricsServer.StartListener(context.Background())
+	log.Printf("Start listener on %s", metricsServer.Cfg.ServerAddress)
 
 	signalChanel := make(chan os.Signal, 1)
 	signal.Notify(signalChanel,

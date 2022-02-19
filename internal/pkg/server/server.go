@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -12,8 +11,7 @@ import (
 )
 
 type Config struct {
-	ServerAddress string
-	ServerPort    string
+	ServerAddress string `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
 	MetricsStore  metrics.Store
 }
 
@@ -38,7 +36,7 @@ func (s *MetricsServer) StartListener(ctx context.Context) {
 	RegisterHandlers(mux, s.Cfg.MetricsStore)
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", s.Cfg.ServerAddress, s.Cfg.ServerPort),
+		Addr:    s.Cfg.ServerAddress,
 		Handler: mux,
 	}
 
