@@ -138,11 +138,11 @@ func (fs *FileStore) LoadMetrics() error {
 }
 
 func (fs *FileStore) RunPreserver(ctx context.Context) {
-	log.Printf("Preserve metrics in %s", fs.file.Name())
-
 	if fs.syncInterval == 0 {
 		return
 	}
+
+	log.Printf("Preserve metrics in %s", fs.file.Name())
 
 	pollTicker := time.NewTicker(fs.syncInterval)
 	defer pollTicker.Stop()
@@ -151,6 +151,7 @@ func (fs *FileStore) RunPreserver(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			fs.saveMetrics()
+			log.Println("Preserver exited")
 
 			return
 		case <-pollTicker.C:

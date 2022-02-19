@@ -29,11 +29,13 @@ type MetricsServer struct {
 
 func (s *MetricsServer) Start(ctx context.Context) {
 	serverContext, serverCancel := context.WithCancel(ctx)
-	defer serverCancel()
+
 	s.context = serverContext
 
 	initStore(s.Cfg)
-	go runPreserver(serverContext, s.Cfg.MetricsStore, s.Cfg.Restore)
+	preserverContext, preserverCancel := context.WithCancel(ctx)
+
+	go runPreserver(preserverContext, s.Cfg.MetricsStore, s.Cfg.Restore)
 
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
@@ -42,6 +44,13 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	signalName := <-signalChannel
 	log.Printf("%s signal received, graceful shutdown the server", signalName)
 	s.stopListener()
+	preserverCancel()
+
+	if err := s.Cfg.MetricsStore.Close(); err != nil {
+		log.Printf("Could not close filestore file: %q", err)
+	}
+
+	serverCancel()
 }
 
 func getSignalChannel() chan os.Signal {
