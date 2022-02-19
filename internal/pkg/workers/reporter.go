@@ -60,7 +60,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 		} else {
 			stringifyMetricValue = fmt.Sprintf("%d", *v.Delta)
 		}
-		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, metrics.GaugeMetricTypeName, v.MType, stringifyMetricValue)
+		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, metrics.GaugeMetricTypeName, v.ID, stringifyMetricValue)
 		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
 			log.Println(err)
