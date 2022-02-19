@@ -66,7 +66,7 @@ func (fs *FileStore) ResetCounterMetric(metricName string) {
 
 	var zero metrics.Counter
 	currentMetric, ok := fs.metricsCache[metricName]
-	if ok {
+	if ok && currentMetric.Delta != nil {
 		*(currentMetric.Delta) = zero
 	} else {
 		fs.metricsCache[metricName] = &metrics.Metric{
@@ -84,7 +84,7 @@ func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gau
 	defer fs.mu.Unlock()
 
 	currentMetric, ok := fs.metricsCache[metricName]
-	if ok {
+	if ok && currentMetric.Value != nil {
 		*(currentMetric.Value) = metricData
 	} else {
 		fs.metricsCache[metricName] = &metrics.Metric{
