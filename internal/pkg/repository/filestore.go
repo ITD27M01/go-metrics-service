@@ -16,7 +16,6 @@ const (
 )
 
 type FileStore struct {
-	encoder      *json.Encoder
 	file         *os.File
 	syncInterval time.Duration
 	metricsCache map[string]*metrics.Metric
@@ -33,7 +32,6 @@ func NewFileStore(filePath string, syncInterval time.Duration) (*FileStore, erro
 
 	metricsCache := make(map[string]*metrics.Metric)
 	fs = FileStore{
-		encoder:      json.NewEncoder(file),
 		file:         file,
 		syncInterval: syncInterval,
 		metricsCache: metricsCache,
@@ -108,13 +106,7 @@ func (fs *FileStore) GetMetrics() map[string]*metrics.Metric {
 }
 
 func (fs *FileStore) Close() error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	log.Println("Closing filestore...")
-	if err := fs.encoder.Encode(&fs.metricsCache); err != nil {
-		log.Printf("Failed to save metrics: %q", err)
-	}
+	fs.saveMetrics()
 
 	if err := fs.file.Sync(); err != nil {
 		log.Printf("Failed to sync metrics: %q", err)
@@ -166,7 +158,22 @@ func (fs *FileStore) saveMetrics() {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	if err := fs.encoder.Encode(&fs.metricsCache); err != nil {
+	const (
+		offset     = 0
+		whence     = 0
+		truncateTo = 0
+	)
+	_, err := fs.file.Seek(offset, whence)
+	if err != nil {
+		log.Printf("Filed to seek file %s", fs.file.Name())
+	}
+	err = fs.file.Truncate(truncateTo)
+	if err != nil {
+		log.Printf("Filed to truncate file %s", fs.file.Name())
+	}
+
+	encoder := json.NewEncoder(fs.file)
+	if err := encoder.Encode(&fs.metricsCache); err != nil {
 		log.Printf("Failed to save metrics: %q", err)
 	}
 }

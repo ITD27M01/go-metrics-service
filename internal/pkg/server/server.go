@@ -44,6 +44,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	signalName := <-signalChannel
 	log.Printf("%s signal received, graceful shutdown the server", signalName)
 	s.stopListener()
+
 	preserverCancel()
 
 	if err := s.Cfg.MetricsStore.Close(); err != nil {
