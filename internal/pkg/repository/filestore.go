@@ -115,6 +115,10 @@ func (fs *FileStore) Close() error {
 		log.Printf("Failed to save metrics: %q", err)
 	}
 
+	if err := fs.file.Sync(); err != nil {
+		log.Printf("Failed to sync metrics: %q", err)
+	}
+
 	return fs.file.Close()
 }
 
