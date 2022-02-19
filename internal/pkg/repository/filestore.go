@@ -108,6 +108,9 @@ func (fs *FileStore) GetMetrics() map[string]*metrics.Metric {
 }
 
 func (fs *FileStore) Close() error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	if err := fs.encoder.Encode(&fs.metricsCache); err != nil {
 		log.Printf("Failed to save metrics: %q", err)
 	}
@@ -153,6 +156,10 @@ func (fs *FileStore) RunPreserver(ctx context.Context) {
 
 func (fs *FileStore) saveMetrics() {
 	log.Printf("Dump metrics to %s", fs.file.Name())
+
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
 	if err := fs.encoder.Encode(&fs.metricsCache); err != nil {
 		log.Printf("Failed to save metrics: %q", err)
 	}

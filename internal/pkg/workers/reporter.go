@@ -43,7 +43,6 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 		case <-reporterContext.Done():
 			return
 		case <-reportTicker.C:
-			// TODO(igortiunov): Think about storage lock/unlock before/after report
 			SendReport(reporterContext, mtr, serverURL, &client)
 			SendReportJSON(reporterContext, mtr, serverURL, &client)
 			resetCounters(mtr)

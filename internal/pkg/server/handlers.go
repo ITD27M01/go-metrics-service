@@ -128,33 +128,23 @@ func retrieveHandlerJSON(metricsStore repository.Store) func(w http.ResponseWrit
 			return
 		}
 
+		metricData, ok := metricsStore.GetMetric(metric.ID)
+		if !ok || metric.MType != metricData.MType {
+			http.Error(
+				w,
+				fmt.Sprintf("Metric not found: %s", metric.ID),
+				http.StatusNotFound,
+			)
+
+			return
+		}
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			metricData, ok := metricsStore.GetMetric(metric.ID)
-			if ok && metricData.Value != nil {
-				metric.Value = metricData.Value
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metric.ID),
-					http.StatusNotFound,
-				)
-
-				return
-			}
+			metricValue := *(metricData.Value)
+			metric.Value = &metricValue
 		case metric.MType == metrics.CounterMetricTypeName:
-			metricData, ok := metricsStore.GetMetric(metric.ID)
-			if ok && metricData.Delta != nil {
-				metric.Delta = metricData.Delta
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metric.ID),
-					http.StatusNotFound,
-				)
-
-				return
-			}
+			metricValue := *(metricData.Delta)
+			metric.Delta = &metricValue
 		default:
 			http.Error(
 				w,
