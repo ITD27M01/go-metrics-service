@@ -32,6 +32,7 @@ func runPreserver(ctx context.Context, store repository.Store, restore bool) {
 	}
 
 	store.RunPreserver(ctx)
+	log.Println("Preserver exited...")
 
 	if err := store.Close(); err != nil {
 		log.Printf("Could not close filestore file: %q", err)

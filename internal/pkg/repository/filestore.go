@@ -44,7 +44,6 @@ func NewFileStore(filePath string, syncInterval time.Duration) (*FileStore, erro
 
 func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	currentMetric, ok := fs.metricsCache[metricName]
 	if ok {
@@ -57,12 +56,12 @@ func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.C
 		}
 	}
 
+	fs.mu.Unlock()
 	fs.flush()
 }
 
 func (fs *FileStore) ResetCounterMetric(metricName string) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	var zero metrics.Counter
 	currentMetric, ok := fs.metricsCache[metricName]
@@ -76,12 +75,12 @@ func (fs *FileStore) ResetCounterMetric(metricName string) {
 		}
 	}
 
+	fs.mu.Unlock()
 	fs.flush()
 }
 
 func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) {
 	fs.mu.Lock()
-	defer fs.mu.Unlock()
 
 	currentMetric, ok := fs.metricsCache[metricName]
 	if ok && currentMetric.Value != nil {
@@ -94,6 +93,7 @@ func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gau
 		}
 	}
 
+	fs.mu.Unlock()
 	fs.flush()
 }
 
@@ -111,6 +111,7 @@ func (fs *FileStore) Close() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
+	log.Println("Closing filestore...")
 	if err := fs.encoder.Encode(&fs.metricsCache); err != nil {
 		log.Printf("Failed to save metrics: %q", err)
 	}

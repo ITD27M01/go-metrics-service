@@ -128,7 +128,7 @@ func retrieveHandlerJSON(metricsStore repository.Store) func(w http.ResponseWrit
 			return
 		}
 
-		log.Printf("Resived request for metric %s and type %s not found", metric.ID, metric.MType)
+		log.Printf("Received request for metric %s and type %s", metric.ID, metric.MType)
 		metricData, ok := metricsStore.GetMetric(metric.ID)
 		if !ok || metric.MType != metricData.MType {
 			http.Error(
