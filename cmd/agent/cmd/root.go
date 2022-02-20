@@ -8,9 +8,9 @@ import (
 
 const (
 	defaultServerAddress  = "127.0.0.1:8080"
-	defaultPollInterval   = 2
-	defaultReportInterval = 10
-	defaultServerTimeout  = 1
+	defaultPollInterval   = 2 * time.Second
+	defaultReportInterval = 10 * time.Second
+	defaultServerTimeout  = 1 * time.Second
 )
 
 var (
@@ -29,13 +29,13 @@ func init() {
 	rootCmd.Flags().StringVarP(&ServerAddress, "address", "a", defaultServerAddress,
 		"Pair of ip:port to connect to")
 
-	rootCmd.Flags().DurationVarP(&ServerTimeout, "timeout", "t", defaultServerTimeout*time.Second,
+	rootCmd.Flags().DurationVarP(&ServerTimeout, "timeout", "t", defaultServerTimeout,
 		"Timeout for server connection")
 
-	rootCmd.Flags().DurationVarP(&ReportInterval, "report", "r", defaultReportInterval*time.Second,
+	rootCmd.Flags().DurationVarP(&ReportInterval, "report", "r", defaultReportInterval,
 		"Number of seconds to periodically report metrics")
 
-	rootCmd.Flags().DurationVarP(&PollInterval, "poll", "p", defaultPollInterval*time.Second,
+	rootCmd.Flags().DurationVarP(&PollInterval, "poll", "p", defaultPollInterval,
 		"Number of seconds to periodically get metrics")
 }
 

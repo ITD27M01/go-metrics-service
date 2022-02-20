@@ -9,7 +9,7 @@ import (
 const (
 	defaultServerAddress = "127.0.0.1:8080"
 	defaultStoreFile     = "/tmp/devops-metrics-db.json"
-	defaultStoreInterval = 300
+	defaultStoreInterval = 300 * time.Second
 )
 
 var (
@@ -34,7 +34,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&Restore, "restore", "r", true,
 		"Flag to load initial metrics from storage backend")
 
-	rootCmd.Flags().DurationVarP(&StoreInterval, "interval", "i", defaultStoreInterval*time.Second,
+	rootCmd.Flags().DurationVarP(&StoreInterval, "interval", "i", defaultStoreInterval,
 		"Number of seconds to periodically save metrics")
 }
 
