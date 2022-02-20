@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,24 +24,24 @@ const metricsHTML = `<!DOCTYPE html>
         <th>Value</th>
     </tr>
     <tr>
-        <td style='text-align:center; vertical-align:middle'>Gauge</td>
-        <td style='text-align:center; vertical-align:middle'>test</td>
+        <td style='text-align:center; vertical-align:middle'>gauge</td>
+        <td style='text-align:center; vertical-align:middle'>test1</td>
         <td style='text-align:center; vertical-align:middle'>100</td>
     </tr>
     <tr>
-        <td style='text-align:center; vertical-align:middle'>Gauge</td>
+        <td style='text-align:center; vertical-align:middle'>counter</td>
+        <td style='text-align:center; vertical-align:middle'>test2</td>
+        <td style='text-align:center; vertical-align:middle'>100</td>
+    </tr>
+    <tr>
+        <td style='text-align:center; vertical-align:middle'>gauge</td>
         <td style='text-align:center; vertical-align:middle'>testSetGet134</td>
         <td style='text-align:center; vertical-align:middle'>96969.519</td>
     </tr>
     <tr>
-        <td style='text-align:center; vertical-align:middle'>Gauge</td>
+        <td style='text-align:center; vertical-align:middle'>gauge</td>
         <td style='text-align:center; vertical-align:middle'>testSetGet135</td>
         <td style='text-align:center; vertical-align:middle'>156519.255</td>
-    </tr>
-    <tr>
-        <td style='text-align:center; vertical-align:middle'>Counter</td>
-        <td style='text-align:center; vertical-align:middle'>test</td>
-        <td style='text-align:center; vertical-align:middle'>100</td>
     </tr>
     </table>
 </body>
@@ -101,7 +102,7 @@ var testsJSON = []testJSON{
 var tests = []test{
 	{
 		name:   "OK gauge update",
-		metric: "/update/gauge/test/100.000000",
+		metric: "/update/gauge/test1/100.000000",
 		method: http.MethodPost,
 		want: want{
 			code: http.StatusOK,
@@ -109,7 +110,7 @@ var tests = []test{
 	},
 	{
 		name:   "OK counter update",
-		metric: "/update/counter/test/100",
+		metric: "/update/counter/test2/100",
 		method: http.MethodPost,
 		want: want{
 			code: http.StatusOK,
@@ -200,7 +201,7 @@ var tests = []test{
 	},
 	{
 		name:   "Get gauge metric",
-		metric: "/value/gauge/test",
+		metric: "/value/gauge/test1",
 		method: http.MethodGet,
 		want: want{
 			code: http.StatusOK,
@@ -209,7 +210,7 @@ var tests = []test{
 	},
 	{
 		name:   "Get counter metric",
-		metric: "/value/counter/test",
+		metric: "/value/counter/test2",
 		method: http.MethodGet,
 		want: want{
 			code: http.StatusOK,
@@ -229,7 +230,7 @@ var tests = []test{
 
 func TestRouter(t *testing.T) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, metrics.NewInMemoryStore())
+	server.RegisterHandlers(mux, repository.NewInMemoryStore())
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 

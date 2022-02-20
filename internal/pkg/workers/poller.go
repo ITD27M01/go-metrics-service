@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
 
 const (
@@ -21,16 +22,13 @@ type PollerWorker struct {
 	Cfg PollerConfig
 }
 
-func (pw *PollerWorker) Run(ctx context.Context, mtr metrics.Store) {
-	pollerContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+func (pw *PollerWorker) Run(ctx context.Context, mtr repository.Store) {
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
 
 	for {
 		select {
-		case <-pollerContext.Done():
+		case <-ctx.Done():
 			return
 		case <-pollTicker.C:
 			UpdateMemStatsMetrics(mtr)
@@ -38,7 +36,7 @@ func (pw *PollerWorker) Run(ctx context.Context, mtr metrics.Store) {
 	}
 }
 
-func UpdateMemStatsMetrics(mtr metrics.Store) {
+func UpdateMemStatsMetrics(mtr repository.Store) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
