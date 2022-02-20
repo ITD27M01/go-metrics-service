@@ -23,15 +23,12 @@ type PollerWorker struct {
 }
 
 func (pw *PollerWorker) Run(ctx context.Context, mtr repository.Store) {
-	pollerContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
 
 	for {
 		select {
-		case <-pollerContext.Done():
+		case <-ctx.Done():
 			return
 		case <-pollTicker.C:
 			UpdateMemStatsMetrics(mtr)

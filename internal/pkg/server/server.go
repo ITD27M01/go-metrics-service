@@ -32,7 +32,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 
 	s.context = serverContext
 
-	initStore(s.Cfg)
+	initMetricsStore(s.Cfg)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
 	go runPreserver(preserverContext, s.Cfg.MetricsStore, s.Cfg.Restore)
@@ -40,9 +40,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
 
-	signalChannel := getSignalChannel()
-	signalName := <-signalChannel
-	log.Printf("%s signal received, graceful shutdown the server", signalName)
+	log.Printf("%s signal received, graceful shutdown the server", <-getSignalChannel())
 	s.stopListener()
 
 	preserverCancel()

@@ -106,7 +106,7 @@ func (fs *FileStore) GetMetrics() map[string]*metrics.Metric {
 }
 
 func (fs *FileStore) Close() error {
-	fs.saveMetrics()
+	fs.SaveMetrics()
 
 	if err := fs.file.Sync(); err != nil {
 		log.Printf("Failed to sync metrics: %q", err)
@@ -142,17 +142,17 @@ func (fs *FileStore) RunPreserver(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			fs.saveMetrics()
+			fs.SaveMetrics()
 			log.Println("Preserver exited")
 
 			return
 		case <-pollTicker.C:
-			fs.saveMetrics()
+			fs.SaveMetrics()
 		}
 	}
 }
 
-func (fs *FileStore) saveMetrics() {
+func (fs *FileStore) SaveMetrics() {
 	log.Printf("Dump metrics to %s", fs.file.Name())
 
 	fs.mu.Lock()
@@ -180,6 +180,6 @@ func (fs *FileStore) saveMetrics() {
 
 func (fs *FileStore) flush() {
 	if fs.syncInterval == 0 {
-		fs.saveMetrics()
+		fs.SaveMetrics()
 	}
 }

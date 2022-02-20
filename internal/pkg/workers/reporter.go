@@ -26,9 +26,6 @@ type ReportWorker struct {
 }
 
 func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
-	reporterContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	reportTicker := time.NewTicker(rw.Cfg.ReportInterval)
 	defer reportTicker.Stop()
 
@@ -40,11 +37,11 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 
 	for {
 		select {
-		case <-reporterContext.Done():
+		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			SendReport(reporterContext, mtr, serverURL, &client)
-			SendReportJSON(reporterContext, mtr, serverURL, &client)
+			SendReport(ctx, mtr, serverURL, &client)
+			SendReportJSON(ctx, mtr, serverURL, &client)
 			resetCounters(mtr)
 		}
 	}

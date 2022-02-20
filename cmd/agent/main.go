@@ -3,13 +3,9 @@ package main
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
 )
 
@@ -20,8 +16,6 @@ const (
 )
 
 func main() {
-	mtr := repository.NewInMemoryStore()
-
 	pollWorkerConfig := workers.PollerConfig{
 		PollInterval: pollInterval,
 	}
@@ -29,10 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	pollWorker := workers.PollerWorker{Cfg: pollWorkerConfig}
-	pollContext, cancelCollector := context.WithCancel(context.Background())
-	go pollWorker.Run(pollContext, mtr)
 
 	reportWorkerConfig := workers.ReporterConfig{
 		ServerScheme:   "http",
@@ -46,23 +36,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	reportWorker := workers.ReportWorker{Cfg: reportWorkerConfig}
-
-	reportContext, cancelReporter := context.WithCancel(context.Background())
-	go reportWorker.Run(reportContext, mtr)
-
-	signalChanel := make(chan os.Signal, 1)
-	signal.Notify(signalChanel,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
-	log.Printf("%v signal received, stopping collector worker", <-signalChanel)
-	cancelCollector()
-
-	log.Println("...stopping reporter worker")
-	cancelReporter()
-
-	log.Println("All workers are stopped")
+	workers.Start(context.Background(), pollWorkerConfig, reportWorkerConfig)
 }

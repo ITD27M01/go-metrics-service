@@ -7,7 +7,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
 
-func initStore(config *Config) {
+func initMetricsStore(config *Config) {
 	if config.StoreFile == "" {
 		config.MetricsStore = repository.NewInMemoryStore()
 
