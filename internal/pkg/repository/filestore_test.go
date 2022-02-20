@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	testMetrics     = `{"Alloc":{"id":"Alloc","type":"gauge","value":1336312}}`
-	testMetricValue = 1336312
+	testMetrics      = `{"Alloc":{"id":"Alloc","type":"gauge","value":1336312}}`
+	testMetrics2     = `{"Alloc":{"id":"Alloc","type":"gauge","value":1336313}}`
+	testMetricValue  = 1336312
+	testMetricValue2 = 1336313
 )
 
 func TestFileStore_LoadMetrics(t *testing.T) {
@@ -71,6 +73,16 @@ func TestFileStore_SaveMetrics(t *testing.T) {
 		Value: &testMetricValue,
 	}
 	metricsCache[testMetricName] = &metric
+
+	testMetricValue2 := metrics.Gauge(testMetricValue2)
+	metricsCache2 := make(map[string]*metrics.Metric)
+	metric2 := metrics.Metric{
+		ID:    testMetricName,
+		MType: metrics.GaugeMetricTypeName,
+		Value: &testMetricValue2,
+	}
+	metricsCache2[testMetricName] = &metric2
+
 	type fields struct {
 		file         *os.File
 		metricsCache map[string]*metrics.Metric
@@ -78,13 +90,23 @@ func TestFileStore_SaveMetrics(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
+		want   string
 	}{
+		{
+			name: "Empty test",
+			fields: fields{
+				file:         f,
+				metricsCache: metricsCache2,
+			},
+			want: testMetrics2,
+		},
 		{
 			name: testMetricName,
 			fields: fields{
 				file:         f,
 				metricsCache: metricsCache,
 			},
+			want: testMetrics,
 		},
 	}
 	for _, tt := range tests {
@@ -95,9 +117,9 @@ func TestFileStore_SaveMetrics(t *testing.T) {
 			}
 			fs.SaveMetrics()
 
-			buf := make([]byte, len(testMetrics))
-			if _, err := f.ReadAt(buf, 0); err != nil || string(buf) != testMetrics {
-				t.Errorf("SaveMetrics() failed (error = %v), want %s, got %v", err, testMetrics, string(buf))
+			buf := make([]byte, len(tt.want))
+			if _, err := f.ReadAt(buf, 0); err != nil || string(buf) != tt.want {
+				t.Errorf("SaveMetrics() failed (error = %v), want %s, got %v", err, tt.want, string(buf))
 			}
 		})
 	}
