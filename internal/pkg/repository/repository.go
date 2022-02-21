@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
@@ -16,7 +17,7 @@ type Store interface {
 
 	GetMetrics() map[string]*metrics.Metric
 
-	RunPreserver(ctx context.Context)
+	RunPreserver(ctx context.Context, syncInterval time.Duration)
 	LoadMetrics() error
 	Close() error
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
 )
@@ -14,7 +15,7 @@ func initMetricsStore(config *Config) {
 		return
 	}
 
-	fileStore, err := repository.NewFileStore(config.StoreFile, config.StoreInterval)
+	fileStore, err := repository.NewFileStore(config.StoreFile)
 	if err != nil {
 		log.Printf("Failed to make file storage: %q", err)
 		config.MetricsStore = repository.NewInMemoryStore()
@@ -23,7 +24,7 @@ func initMetricsStore(config *Config) {
 	}
 }
 
-func runPreserver(ctx context.Context, store repository.Store, restore bool) {
+func runPreserver(ctx context.Context, store repository.Store, restore bool, storeInterval time.Duration) {
 	if restore {
 		err := store.LoadMetrics()
 		if err != nil {
@@ -31,6 +32,6 @@ func runPreserver(ctx context.Context, store repository.Store, restore bool) {
 		}
 	}
 
-	store.RunPreserver(ctx)
+	store.RunPreserver(ctx, storeInterval)
 	log.Println("Preserver exited...")
 }

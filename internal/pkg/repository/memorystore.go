@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
@@ -79,6 +80,6 @@ func (m *InMemoryStore) GetMetrics() map[string]*metrics.Metric {
 	return m.metricsCache
 }
 
-func (m *InMemoryStore) LoadMetrics() error             { return nil }
-func (m *InMemoryStore) RunPreserver(_ context.Context) {}
-func (m *InMemoryStore) Close() error                   { return nil }
+func (m *InMemoryStore) LoadMetrics() error                              { return nil }
+func (m *InMemoryStore) RunPreserver(_ context.Context, _ time.Duration) {}
+func (m *InMemoryStore) Close() error                                    { return nil }

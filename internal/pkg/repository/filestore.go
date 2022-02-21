@@ -17,12 +17,12 @@ const (
 
 type FileStore struct {
 	file         *os.File
-	syncInterval time.Duration
+	syncChannel  chan struct{}
 	metricsCache map[string]*metrics.Metric
 	mu           sync.Mutex
 }
 
-func NewFileStore(filePath string, syncInterval time.Duration) (*FileStore, error) {
+func NewFileStore(filePath string) (*FileStore, error) {
 	var fs FileStore
 
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, fileMode)
@@ -33,7 +33,7 @@ func NewFileStore(filePath string, syncInterval time.Duration) (*FileStore, erro
 	metricsCache := make(map[string]*metrics.Metric)
 	fs = FileStore{
 		file:         file,
-		syncInterval: syncInterval,
+		syncChannel:  make(chan struct{}, 1),
 		metricsCache: metricsCache,
 	}
 
@@ -55,7 +55,7 @@ func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.C
 	}
 
 	fs.mu.Unlock()
-	fs.flush()
+	fs.syncChannel <- struct{}{}
 }
 
 func (fs *FileStore) ResetCounterMetric(metricName string) {
@@ -74,7 +74,7 @@ func (fs *FileStore) ResetCounterMetric(metricName string) {
 	}
 
 	fs.mu.Unlock()
-	fs.flush()
+	fs.syncChannel <- struct{}{}
 }
 
 func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) {
@@ -92,7 +92,7 @@ func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gau
 	}
 
 	fs.mu.Unlock()
-	fs.flush()
+	fs.syncChannel <- struct{}{}
 }
 
 func (fs *FileStore) GetMetric(metricName string) (*metrics.Metric, bool) {
@@ -129,25 +129,29 @@ func (fs *FileStore) LoadMetrics() error {
 	return err
 }
 
-func (fs *FileStore) RunPreserver(ctx context.Context) {
-	if fs.syncInterval == 0 {
-		return
-	}
-
+func (fs *FileStore) RunPreserver(ctx context.Context, syncInterval time.Duration) {
 	log.Printf("Preserve metrics in %s", fs.file.Name())
 
-	pollTicker := time.NewTicker(fs.syncInterval)
+	pollTicker := new(time.Ticker)
+	if syncInterval > 0 {
+		pollTicker = time.NewTicker(syncInterval)
+
+		log.Printf("Dump metrics to %s every %s", fs.file.Name(), syncInterval)
+	}
 	defer pollTicker.Stop()
 
 	for {
 		select {
-		case <-ctx.Done():
-			fs.SaveMetrics()
-			log.Println("Preserver exited")
-
-			return
 		case <-pollTicker.C:
 			fs.SaveMetrics()
+		case <-fs.syncChannel:
+			if syncInterval == 0 {
+				fs.SaveMetrics()
+			}
+		case <-ctx.Done():
+			fs.SaveMetrics()
+
+			return
 		}
 	}
 }
@@ -175,11 +179,5 @@ func (fs *FileStore) SaveMetrics() {
 	encoder := json.NewEncoder(fs.file)
 	if err := encoder.Encode(&fs.metricsCache); err != nil {
 		log.Printf("Failed to save metrics: %q", err)
-	}
-}
-
-func (fs *FileStore) flush() {
-	if fs.syncInterval == 0 {
-		fs.SaveMetrics()
 	}
 }

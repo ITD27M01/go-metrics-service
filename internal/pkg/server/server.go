@@ -35,7 +35,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	initMetricsStore(s.Cfg)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
-	go runPreserver(preserverContext, s.Cfg.MetricsStore, s.Cfg.Restore)
+	go runPreserver(preserverContext, s.Cfg.MetricsStore, s.Cfg.Restore, s.Cfg.StoreInterval)
 
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
