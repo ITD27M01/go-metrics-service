@@ -80,9 +80,23 @@ func updateHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter
 
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			metricsStore.UpdateGaugeMetric(metric.ID, *metric.Value)
+			err := metricsStore.UpdateGaugeMetric(metric.ID, *metric.Value)
+			if err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Failed to update metric: %q", err),
+					http.StatusBadRequest,
+				)
+			}
 		case metric.MType == metrics.CounterMetricTypeName:
-			metricsStore.UpdateCounterMetric(metric.ID, *metric.Delta)
+			err := metricsStore.UpdateCounterMetric(metric.ID, *metric.Delta)
+			if err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Failed to update metric: %q", err),
+					http.StatusBadRequest,
+				)
+			}
 		default:
 			http.Error(
 				w,
@@ -225,21 +239,17 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 }
 
 func updateGaugeMetric(metricName string, metricData string, metricsStore repository.Store) error {
-	if parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize); err == nil {
-		metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
-	} else {
-		return err
+	parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize)
+	if err == nil {
+		return metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
 	}
-
-	return nil
+	return err
 }
 
 func updateCounterMetric(metricName string, metricData string, metricsStore repository.Store) error {
-	if parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err == nil {
-		metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
-	} else {
-		return err
+	parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize)
+	if err == nil {
+		return metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
 	}
-
-	return nil
+	return err
 }

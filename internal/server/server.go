@@ -32,10 +32,16 @@ func (s *MetricsServer) Start(ctx context.Context) {
 
 	s.context = serverContext
 
-	initMetricsStore(s.Cfg)
+	preserver := initStore(s.Cfg)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
-	go runPreserver(preserverContext, s.Cfg.MetricsStore, s.Cfg.Restore, s.Cfg.StoreInterval)
+	if s.Cfg.Restore {
+		if err := s.Cfg.MetricsStore.LoadMetrics(); err != nil {
+			log.Printf("Filed to load metrics from file: %q", err)
+		}
+	}
+
+	go preserver.RunPreserver(preserverContext)
 
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
@@ -46,7 +52,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	preserverCancel()
 
 	if err := s.Cfg.MetricsStore.Close(); err != nil {
-		log.Printf("Could not close filestore file: %q", err)
+		log.Printf("Could not close filestore: %q", err)
 	}
 
 	serverCancel()

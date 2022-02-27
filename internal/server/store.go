@@ -1,37 +1,25 @@
 package server
 
 import (
-	"context"
 	"log"
-	"time"
 
+	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
-func initMetricsStore(config *Config) {
+func initStore(config *Config) *preserver.Preserver {
+	syncChannel := make(chan struct{}, 1)
+
 	if config.StoreFilePath == "" {
 		config.MetricsStore = repository.NewInMemoryStore()
-
-		return
-	}
-
-	fileStore, err := repository.NewFileStore(config.StoreFilePath)
-	if err != nil {
-		log.Printf("Failed to make file storage: %q", err)
-		config.MetricsStore = repository.NewInMemoryStore()
 	} else {
+		fileStore, err := repository.NewFileStore(config.StoreFilePath, syncChannel)
+		if err != nil {
+			log.Fatalf("Failed to make file storage: %q", err)
+		}
+
 		config.MetricsStore = fileStore
 	}
-}
 
-func runPreserver(ctx context.Context, store repository.Store, restore bool, storeInterval time.Duration) {
-	if restore {
-		err := store.LoadMetrics()
-		if err != nil {
-			log.Printf("Filed to load metrics from file: %q", err)
-		}
-	}
-
-	store.RunPreserver(ctx, storeInterval)
-	log.Println("Preserver exited...")
+	return preserver.NewPreserver(config.MetricsStore, config.StoreInterval, syncChannel)
 }

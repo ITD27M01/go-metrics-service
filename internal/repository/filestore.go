@@ -1,12 +1,11 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
@@ -22,7 +21,7 @@ type FileStore struct {
 	mu           sync.Mutex
 }
 
-func NewFileStore(filePath string) (*FileStore, error) {
+func NewFileStore(filePath string, syncChannel chan struct{}) (*FileStore, error) {
 	var fs FileStore
 
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, fileMode)
@@ -33,20 +32,25 @@ func NewFileStore(filePath string) (*FileStore, error) {
 	metricsCache := make(map[string]*metrics.Metric)
 	fs = FileStore{
 		file:         file,
-		syncChannel:  make(chan struct{}, 1),
+		syncChannel:  syncChannel,
 		metricsCache: metricsCache,
 	}
 
 	return &fs, nil
 }
 
-func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) {
+func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) error {
 	fs.mu.Lock()
+	defer fs.sync()
+	defer fs.mu.Unlock()
 
 	currentMetric, ok := fs.metricsCache[metricName]
-	if ok {
+	switch {
+	case ok && currentMetric.Delta != nil:
 		*(currentMetric.Delta) += metricData
-	} else {
+	case ok && currentMetric.Delta == nil:
+		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
+	default:
 		fs.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
 			MType: metrics.CounterMetricTypeName,
@@ -54,18 +58,22 @@ func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.C
 		}
 	}
 
-	fs.mu.Unlock()
-	fs.syncChannel <- struct{}{}
+	return nil
 }
 
-func (fs *FileStore) ResetCounterMetric(metricName string) {
+func (fs *FileStore) ResetCounterMetric(metricName string) error {
 	fs.mu.Lock()
+	defer fs.sync()
+	defer fs.mu.Unlock()
 
 	var zero metrics.Counter
 	currentMetric, ok := fs.metricsCache[metricName]
-	if ok && currentMetric.Delta != nil {
+	switch {
+	case ok && currentMetric.Delta != nil:
 		*(currentMetric.Delta) = zero
-	} else {
+	case ok && currentMetric.Delta == nil:
+		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
+	default:
 		fs.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
 			MType: metrics.CounterMetricTypeName,
@@ -73,17 +81,21 @@ func (fs *FileStore) ResetCounterMetric(metricName string) {
 		}
 	}
 
-	fs.mu.Unlock()
-	fs.syncChannel <- struct{}{}
+	return nil
 }
 
-func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) {
+func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) error {
 	fs.mu.Lock()
+	defer fs.sync()
+	defer fs.mu.Unlock()
 
 	currentMetric, ok := fs.metricsCache[metricName]
-	if ok && currentMetric.Value != nil {
+	switch {
+	case ok && currentMetric.Value != nil:
 		*(currentMetric.Value) = metricData
-	} else {
+	case ok && currentMetric.Value == nil:
+		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
+	default:
 		fs.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
 			MType: metrics.GaugeMetricTypeName,
@@ -91,8 +103,7 @@ func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gau
 		}
 	}
 
-	fs.mu.Unlock()
-	fs.syncChannel <- struct{}{}
+	return nil
 }
 
 func (fs *FileStore) GetMetric(metricName string) (*metrics.Metric, bool) {
@@ -105,8 +116,14 @@ func (fs *FileStore) GetMetrics() map[string]*metrics.Metric {
 	return fs.metricsCache
 }
 
+func (fs *FileStore) sync() {
+	fs.syncChannel <- struct{}{}
+}
+
 func (fs *FileStore) Close() error {
-	fs.SaveMetrics()
+	if err := fs.SaveMetrics(); err != nil {
+		log.Printf("Something went wrong durin metrics preserve %q", err)
+	}
 
 	if err := fs.file.Sync(); err != nil {
 		log.Printf("Failed to sync metrics: %q", err)
@@ -118,45 +135,15 @@ func (fs *FileStore) Close() error {
 func (fs *FileStore) LoadMetrics() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
+
 	jsonDecoder := json.NewDecoder(fs.file)
 
 	log.Printf("Load metrics from %s", fs.file.Name())
-	err := jsonDecoder.Decode(&(fs.metricsCache))
-	if err != nil && err.Error() == "EOF" {
-		log.Printf("%s is empty", fs.file.Name())
-	}
 
-	return err
+	return jsonDecoder.Decode(&(fs.metricsCache))
 }
 
-func (fs *FileStore) RunPreserver(ctx context.Context, syncInterval time.Duration) {
-	log.Printf("Preserve metrics in %s", fs.file.Name())
-
-	pollTicker := new(time.Ticker)
-	if syncInterval > 0 {
-		pollTicker = time.NewTicker(syncInterval)
-
-		log.Printf("Dump metrics to %s every %s", fs.file.Name(), syncInterval)
-	}
-	defer pollTicker.Stop()
-
-	for {
-		select {
-		case <-pollTicker.C:
-			fs.SaveMetrics()
-		case <-fs.syncChannel:
-			if syncInterval == 0 {
-				fs.SaveMetrics()
-			}
-		case <-ctx.Done():
-			fs.SaveMetrics()
-
-			return
-		}
-	}
-}
-
-func (fs *FileStore) SaveMetrics() {
+func (fs *FileStore) SaveMetrics() (err error) {
 	log.Printf("Dump metrics to %s", fs.file.Name())
 
 	fs.mu.Lock()
@@ -167,17 +154,16 @@ func (fs *FileStore) SaveMetrics() {
 		whence     = 0
 		truncateTo = 0
 	)
-	_, err := fs.file.Seek(offset, whence)
+	_, err = fs.file.Seek(offset, whence)
 	if err != nil {
-		log.Printf("Filed to seek file %s", fs.file.Name())
+		return err
 	}
-	err = fs.file.Truncate(truncateTo)
-	if err != nil {
-		log.Printf("Filed to truncate file %s", fs.file.Name())
+
+	if err := fs.file.Truncate(truncateTo); err != nil {
+		return err
 	}
 
 	encoder := json.NewEncoder(fs.file)
-	if err := encoder.Encode(&fs.metricsCache); err != nil {
-		log.Printf("Failed to save metrics: %q", err)
-	}
+
+	return encoder.Encode(&fs.metricsCache)
 }

@@ -1,23 +1,22 @@
 package repository
 
 import (
-	"context"
-	"time"
+	"errors"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
-type Store interface {
-	UpdateCounterMetric(name string, value metrics.Counter)
-	ResetCounterMetric(name string)
+var ErrMetricTypeMismatch = errors.New("possible metric type mismatch")
 
-	UpdateGaugeMetric(name string, value metrics.Gauge)
+type Store interface {
+	UpdateCounterMetric(name string, value metrics.Counter) error
+	ResetCounterMetric(name string) error
+	UpdateGaugeMetric(name string, value metrics.Gauge) error
 
 	GetMetric(name string) (*metrics.Metric, bool)
-
 	GetMetrics() map[string]*metrics.Metric
 
-	RunPreserver(ctx context.Context, syncInterval time.Duration)
+	SaveMetrics() error
 	LoadMetrics() error
 	Close() error
 }
