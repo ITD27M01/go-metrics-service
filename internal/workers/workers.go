@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfig ReporterConfig) {

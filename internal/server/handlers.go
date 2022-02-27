@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 //go:embed assets/index.gohtml
@@ -44,19 +44,13 @@ func GetMetricHandler(metricsStore repository.Store) func(r chi.Router) {
 }
 
 func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
+	var tmpl = template.Must(template.New("index.html").Parse(metricsTemplateFile))
+
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			metricsData := metricsStore.GetMetrics()
 
-			tmpl, err := template.New("index.html").Parse(metricsTemplateFile)
-			if err != nil {
-				http.Error(
-					w,
-					"Something went wrong during page template rendering",
-					http.StatusInternalServerError,
-				)
-			}
-			err = tmpl.Execute(w, metricsData)
+			err := tmpl.Execute(w, metricsData)
 			if err != nil {
 				http.Error(
 					w,
@@ -80,9 +74,23 @@ func updateHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter
 
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			metricsStore.UpdateGaugeMetric(metric.ID, *metric.Value)
+			err := metricsStore.UpdateGaugeMetric(metric.ID, *metric.Value)
+			if err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Failed to update metric: %q", err),
+					http.StatusBadRequest,
+				)
+			}
 		case metric.MType == metrics.CounterMetricTypeName:
-			metricsStore.UpdateCounterMetric(metric.ID, *metric.Delta)
+			err := metricsStore.UpdateCounterMetric(metric.ID, *metric.Delta)
+			if err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Failed to update metric: %q", err),
+					http.StatusBadRequest,
+				)
+			}
 		default:
 			http.Error(
 				w,
@@ -225,21 +233,19 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 }
 
 func updateGaugeMetric(metricName string, metricData string, metricsStore repository.Store) error {
-	if parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize); err == nil {
-		metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
-	} else {
-		return err
+	parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize)
+	if err == nil {
+		return metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
 	}
 
-	return nil
+	return err
 }
 
 func updateCounterMetric(metricName string, metricData string, metricsStore repository.Store) error {
-	if parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err == nil {
-		metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
-	} else {
-		return err
+	parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize)
+	if err == nil {
+		return metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
 	}
 
-	return nil
+	return err
 }

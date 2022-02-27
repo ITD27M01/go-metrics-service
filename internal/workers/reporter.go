@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 type ReporterConfig struct {
 	ServerScheme   string `env:"SERVER_SCHEME" envDefault:"http"`
-	ServerAddress  string `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
+	ServerAddress  string `env:"ADDRESS"`
 	ServerPath     string `env:"SERVER_PATH" envDefault:"/update/"`
 	ServerTimeout  time.Duration
-	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 }
 
 type ReportWorker struct {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 )
 
 type PollerConfig struct {
-	PollInterval time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
+	PollInterval time.Duration `env:"POLL_INTERVAL"`
 }
 
 type PollerWorker struct {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
