@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
@@ -32,7 +33,8 @@ func (s *MetricsServer) Start(ctx context.Context) {
 
 	s.context = serverContext
 
-	preserver := initStore(s.Cfg)
+	syncChannel := initStore(s.Cfg)
+	metricsPreserver := preserver.NewPreserver(s.Cfg.MetricsStore, s.Cfg.StoreInterval, syncChannel)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
 	if s.Cfg.Restore {
@@ -41,7 +43,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 		}
 	}
 
-	go preserver.RunPreserver(preserverContext)
+	go metricsPreserver.RunPreserver(preserverContext)
 
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)

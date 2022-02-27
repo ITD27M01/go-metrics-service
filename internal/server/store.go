@@ -3,12 +3,11 @@ package server
 import (
 	"log"
 
-	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
-func initStore(config *Config) *preserver.Preserver {
-	syncChannel := make(chan struct{}, 1)
+func initStore(config *Config) (syncChannel chan struct{}) {
+	syncChannel = make(chan struct{}, 1)
 
 	if config.StoreFilePath == "" {
 		config.MetricsStore = repository.NewInMemoryStore()
@@ -21,5 +20,5 @@ func initStore(config *Config) *preserver.Preserver {
 		config.MetricsStore = fileStore
 	}
 
-	return preserver.NewPreserver(config.MetricsStore, config.StoreInterval, syncChannel)
+	return
 }
