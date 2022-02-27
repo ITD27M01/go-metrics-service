@@ -44,19 +44,13 @@ func GetMetricHandler(metricsStore repository.Store) func(r chi.Router) {
 }
 
 func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
+	var tmpl = template.Must(template.New("index.html").Parse(metricsTemplateFile))
+
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			metricsData := metricsStore.GetMetrics()
 
-			tmpl, err := template.New("index.html").Parse(metricsTemplateFile)
-			if err != nil {
-				http.Error(
-					w,
-					"Something went wrong during page template rendering",
-					http.StatusInternalServerError,
-				)
-			}
-			err = tmpl.Execute(w, metricsData)
+			err := tmpl.Execute(w, metricsData)
 			if err != nil {
 				http.Error(
 					w,
