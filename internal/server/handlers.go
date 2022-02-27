@@ -243,6 +243,7 @@ func updateGaugeMetric(metricName string, metricData string, metricsStore reposi
 	if err == nil {
 		return metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
 	}
+
 	return err
 }
 
@@ -251,5 +252,6 @@ func updateCounterMetric(metricName string, metricData string, metricsStore repo
 	if err == nil {
 		return metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
 	}
+
 	return err
 }
