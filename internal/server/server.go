@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 type Config struct {
 	ServerAddress string        `env:"ADDRESS"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
-	StoreFile     string        `env:"STORE_FILE"`
+	StoreFilePath string        `env:"STORE_FILE"`
 	Restore       bool          `env:"RESTORE"`
 
 	MetricsStore repository.Store

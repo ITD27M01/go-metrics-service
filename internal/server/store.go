@@ -5,17 +5,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/repository"
+	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 func initMetricsStore(config *Config) {
-	if config.StoreFile == "" {
+	if config.StoreFilePath == "" {
 		config.MetricsStore = repository.NewInMemoryStore()
 
 		return
 	}
 
-	fileStore, err := repository.NewFileStore(config.StoreFile)
+	fileStore, err := repository.NewFileStore(config.StoreFilePath)
 	if err != nil {
 		log.Printf("Failed to make file storage: %q", err)
 		config.MetricsStore = repository.NewInMemoryStore()

@@ -8,7 +8,7 @@ import (
 
 const (
 	defaultServerAddress = "127.0.0.1:8080"
-	defaultStoreFile     = "/tmp/devops-metrics-db.json"
+	defaultStoreFilePath = "/tmp/devops-metrics-db.json"
 	defaultStoreInterval = 300 * time.Second
 )
 
@@ -21,14 +21,14 @@ var (
 	ServerAddress string
 	Restore       bool
 	StoreInterval time.Duration
-	StoreFile     string
+	StoreFilePath string
 )
 
 func init() {
 	rootCmd.Flags().StringVarP(&ServerAddress, "address", "a", defaultServerAddress,
 		"Pair of ip:port to listen on")
 
-	rootCmd.Flags().StringVarP(&StoreFile, "file", "f", defaultStoreFile,
+	rootCmd.Flags().StringVarP(&StoreFilePath, "file", "f", defaultStoreFilePath,
 		"Number of seconds to periodically save metrics")
 
 	rootCmd.Flags().BoolVarP(&Restore, "restore", "r", true,

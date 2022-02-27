@@ -6,22 +6,18 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/cmd/agent/cmd"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/workers"
+	"github.com/itd27m01/go-metrics-service/internal/workers"
 )
 
 func main() {
-	err := cmd.Execute()
-	if err != nil {
-		log.Printf("Failed to parse command line arguments: %q", err)
-
-		return
+	if err := cmd.Execute(); err != nil {
+		log.Fatalf("Failed to parse command line arguments: %q", err)
 	}
 
 	pollWorkerConfig := workers.PollerConfig{
 		PollInterval: cmd.PollInterval,
 	}
-	err = env.Parse(&pollWorkerConfig)
-	if err != nil {
+	if err := env.Parse(&pollWorkerConfig); err != nil {
 		log.Fatal(err)
 	}
 
@@ -32,8 +28,7 @@ func main() {
 		ServerTimeout:  cmd.ServerTimeout,
 		ReportInterval: cmd.ReportInterval,
 	}
-	err = env.Parse(&reportWorkerConfig)
-	if err != nil {
+	if err := env.Parse(&reportWorkerConfig); err != nil {
 		log.Fatal(err)
 	}
 

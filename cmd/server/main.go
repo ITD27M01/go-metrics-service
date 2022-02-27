@@ -6,25 +6,21 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/cmd/server/cmd"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/server"
+	"github.com/itd27m01/go-metrics-service/internal/server"
 )
 
 func main() {
-	err := cmd.Execute()
-	if err != nil {
-		log.Printf("Failed to parse command line arguments: %q", err)
-
-		return
+	if err := cmd.Execute(); err != nil {
+		log.Fatalf("Failed to parse command line arguments: %q", err)
 	}
 
 	metricsServerConfig := server.Config{
 		ServerAddress: cmd.ServerAddress,
 		StoreInterval: cmd.StoreInterval,
 		Restore:       cmd.Restore,
-		StoreFile:     cmd.StoreFile,
+		StoreFilePath: cmd.StoreFilePath,
 	}
-	err = env.Parse(&metricsServerConfig)
-	if err != nil {
+	if err := env.Parse(&metricsServerConfig); err != nil {
 		log.Fatal(err)
 	}
 
