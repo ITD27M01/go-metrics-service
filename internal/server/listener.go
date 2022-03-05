@@ -1,6 +1,7 @@
 package server
 
 import (
+	"compress/gzip"
 	"log"
 	"net/http"
 
@@ -14,6 +15,9 @@ func (s *MetricsServer) startListener() {
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
+
+	compressor := middleware.NewCompressor(gzip.BestCompression)
+	mux.Use(compressor.Handler)
 
 	RegisterHandlers(mux, s.Cfg.MetricsStore)
 
