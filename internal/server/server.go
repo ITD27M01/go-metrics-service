@@ -37,10 +37,8 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	metricsPreserver := preserver.NewPreserver(s.Cfg.MetricsStore, s.Cfg.StoreInterval, syncChannel)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
-	if s.Cfg.Restore {
-		if err := s.Cfg.MetricsStore.LoadMetrics(); err != nil {
-			log.Printf("Filed to load metrics from file: %q", err)
-		}
+	if s.Cfg.Restore && s.Cfg.MetricsStore.LoadMetrics() != nil {
+		log.Println("Filed to load metrics from file")
 	}
 
 	go metricsPreserver.RunPreserver(preserverContext)

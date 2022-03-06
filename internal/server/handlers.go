@@ -50,6 +50,7 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			metricsData := metricsStore.GetMetrics()
 
+			w.Header().Set("Content-Type", "text/html")
 			err := tmpl.Execute(w, metricsData)
 			if err != nil {
 				http.Error(
