@@ -2,7 +2,11 @@ package metrics
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 )
 
 const (
@@ -18,6 +22,7 @@ type Metric struct {
 	MType string   `json:"type"`            // Параметр, принимающий значение gauge или counter
 	Delta *Counter `json:"delta,omitempty"` // Значение метрики в случае передачи counter
 	Value *Gauge   `json:"value,omitempty"` // Значение метрики в случае передачи gauge
+	Hash  string   `json:"hash,omitempty"`  // Значение хеш-функции
 }
 
 func (m *Metric) EncodeMetric() (*bytes.Buffer, error) {
@@ -29,4 +34,35 @@ func (m *Metric) EncodeMetric() (*bytes.Buffer, error) {
 	}
 
 	return &buf, nil
+}
+
+func (m *Metric) SetHash(key string) {
+	if key == "" {
+		return
+	}
+
+	m.Hash = m.getHash(key)
+}
+
+func (m *Metric) IsHashValid(key string) bool {
+	if key == "" {
+		return true
+	}
+
+	return m.Hash == m.getHash(key)
+}
+
+func (m *Metric) getHash(key string) string {
+	var metricString string
+	switch {
+	case m.MType == GaugeMetricTypeName:
+		metricString = fmt.Sprintf("%s:%s:%f", GaugeMetricTypeName, m.ID, *(m.Value))
+	case m.MType == CounterMetricTypeName:
+		metricString = fmt.Sprintf("%s:%s:%d", CounterMetricTypeName, m.ID, *(m.Delta))
+	}
+
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write([]byte(metricString))
+
+	return hex.EncodeToString(h.Sum(nil))
 }

@@ -18,6 +18,7 @@ type Config struct {
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
 	StoreFilePath string        `env:"STORE_FILE"`
 	Restore       bool          `env:"RESTORE"`
+	SignKey       string        `env:"KEY"`
 
 	MetricsStore repository.Store
 }

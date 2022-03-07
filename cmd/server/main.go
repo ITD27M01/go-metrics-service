@@ -19,6 +19,7 @@ func main() {
 		StoreInterval: cmd.StoreInterval,
 		Restore:       cmd.Restore,
 		StoreFilePath: cmd.StoreFilePath,
+		SignKey:       cmd.SignKey,
 	}
 	if err := env.Parse(&metricsServerConfig); err != nil {
 		log.Fatal(err)

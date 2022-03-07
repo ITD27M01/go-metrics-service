@@ -23,22 +23,22 @@ const (
 	counterBitSize = 64
 )
 
-func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store) {
-	mux.Route("/update/", UpdateHandler(metricsStore))
-	mux.Route("/value/", GetMetricHandler(metricsStore))
+func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
+	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
+	mux.Route("/value/", GetMetricHandler(metricsStore, signKey))
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
 
-func UpdateHandler(metricsStore repository.Store) func(r chi.Router) {
+func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", updateHandlerJSON(metricsStore))
+		r.Post("/", updateHandlerJSON(metricsStore, signKey))
 		r.Post("/{metricType}/{metricName}/{metricData}", updateHandlerPlain(metricsStore))
 	}
 }
 
-func GetMetricHandler(metricsStore repository.Store) func(r chi.Router) {
+func GetMetricHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", retrieveHandlerJSON(metricsStore))
+		r.Post("/", retrieveHandlerJSON(metricsStore, signKey))
 		r.Get("/{metricType}/{metricName}", getHandlerPlain(metricsStore))
 	}
 }
@@ -63,12 +63,18 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 	}
 }
 
-func updateHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
+func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
 		err := json.NewDecoder(r.Body).Decode(&metric)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
+
+			return
+		}
+
+		if !metric.IsHashValid(signKey) {
+			http.Error(w, "Wrong hash provided for metric", http.StatusBadRequest)
 
 			return
 		}
@@ -127,7 +133,7 @@ func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWrite
 	}
 }
 
-func retrieveHandlerJSON(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
+func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
 		err := json.NewDecoder(r.Body).Decode(&metric)
@@ -148,23 +154,10 @@ func retrieveHandlerJSON(metricsStore repository.Store) func(w http.ResponseWrit
 
 			return
 		}
-		switch {
-		case metric.MType == metrics.GaugeMetricTypeName:
-			metricValue := *(metricData.Value)
-			metric.Value = &metricValue
-		case metric.MType == metrics.CounterMetricTypeName:
-			metricValue := *(metricData.Delta)
-			metric.Delta = &metricValue
-		default:
-			http.Error(
-				w,
-				fmt.Sprintf("Metric type not implemented: %s", metric.MType),
-				http.StatusNotImplemented,
-			)
 
-			return
-		}
-		encodedMetric, err := metric.EncodeMetric()
+		metricData.SetHash(signKey)
+
+		encodedMetric, err := metricData.EncodeMetric()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusBadRequest)
 

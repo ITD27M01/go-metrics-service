@@ -19,6 +19,7 @@ type ReporterConfig struct {
 	ServerPath     string `env:"SERVER_PATH" envDefault:"/update/"`
 	ServerTimeout  time.Duration
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	SignKey        string        `env:"KEY"`
 }
 
 type ReportWorker struct {
@@ -41,7 +42,7 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 			return
 		case <-reportTicker.C:
 			SendReport(ctx, mtr, serverURL, &client)
-			SendReportJSON(ctx, mtr, serverURL, &client)
+			SendReportJSON(ctx, mtr, serverURL, &client, rw.Cfg.SignKey)
 			resetCounters(mtr)
 		}
 	}
@@ -64,11 +65,11 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 	}
 }
 
-func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
 	for _, v := range mtr.GetMetrics() {
-		err := sendMetricJSON(ctx, updateURL, client, v)
+		err := sendMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
 			log.Println(err)
 		}
@@ -106,9 +107,11 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 	return nil
 }
 
-func sendMetricJSON(ctx context.Context, serverURL string, client *http.Client, metric *metrics.Metric) error {
+func sendMetricJSON(ctx context.Context, serverURL string,
+	client *http.Client, metric *metrics.Metric, key string) error {
 	log.Printf("Update metric: %s", metric.ID)
 
+	metric.SetHash(key)
 	body, err := metric.EncodeMetric()
 	if err != nil {
 		return err
@@ -140,5 +143,7 @@ func sendMetricJSON(ctx context.Context, serverURL string, client *http.Client, 
 }
 
 func resetCounters(mtr repository.Store) {
-	mtr.ResetCounterMetric("PollCount")
+	if err := mtr.ResetCounterMetric("PollCount"); err != nil {
+		log.Printf("couldn't reset counter: %q", err)
+	}
 }

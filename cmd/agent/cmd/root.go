@@ -23,6 +23,7 @@ var (
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	ServerTimeout  time.Duration
+	SignKey        string
 )
 
 func init() {
@@ -37,6 +38,9 @@ func init() {
 
 	rootCmd.Flags().DurationVarP(&PollInterval, "poll", "p", defaultPollInterval,
 		"Number of seconds to periodically get metrics")
+
+	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
+		"Sign key for metrics")
 }
 
 func Execute() error {
