@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -53,15 +55,15 @@ func (m *Metric) IsHashValid(key string) bool {
 
 func (m *Metric) getHash(key string) string {
 	var metricString string
-	switch {
-	case m.MType == GaugeMetricTypeName:
+	switch strings.ToLower(m.MType) {
+	case GaugeMetricTypeName:
 		metricString = fmt.Sprintf("%s:%s:%f", GaugeMetricTypeName, m.ID, *(m.Value))
-	case m.MType == CounterMetricTypeName:
+	case CounterMetricTypeName:
 		metricString = fmt.Sprintf("%s:%s:%d", CounterMetricTypeName, m.ID, *(m.Delta))
 	}
 
-	h := hmac.New(sha256.New, []byte(key))
-	h.Write([]byte(metricString))
+	mac := hmac.New(sha256.New, []byte(key))
+	mac.Write([]byte(metricString))
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return hex.EncodeToString(mac.Sum(nil))
 }
