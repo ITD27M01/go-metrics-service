@@ -19,7 +19,7 @@ func (s *MetricsServer) startListener() {
 	compressor := middleware.NewCompressor(gzip.BestCompression)
 	mux.Use(compressor.Handler)
 
-	RegisterHandlers(mux, s.Cfg.MetricsStore)
+	RegisterHandlers(mux, s.Cfg.MetricsStore, s.Cfg.SignKey)
 
 	httpServer := &http.Server{
 		Addr:    s.Cfg.ServerAddress,

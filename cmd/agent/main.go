@@ -27,6 +27,7 @@ func main() {
 		ServerPath:     "/update/",
 		ServerTimeout:  cmd.ServerTimeout,
 		ReportInterval: cmd.ReportInterval,
+		SignKey:        cmd.SignKey,
 	}
 	if err := env.Parse(&reportWorkerConfig); err != nil {
 		log.Fatal(err)

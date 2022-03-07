@@ -115,5 +115,5 @@ func TestSendReportJSONWorker(t *testing.T) {
 	}))
 	defer server.Close()
 
-	workers.SendReportJSON(context.Background(), mtr, server.URL, server.Client())
+	workers.SendReportJSON(context.Background(), mtr, server.URL, server.Client(), "")
 }

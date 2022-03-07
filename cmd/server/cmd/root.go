@@ -22,6 +22,7 @@ var (
 	Restore       bool
 	StoreInterval time.Duration
 	StoreFilePath string
+	SignKey       string
 )
 
 func init() {
@@ -36,6 +37,9 @@ func init() {
 
 	rootCmd.Flags().DurationVarP(&StoreInterval, "interval", "i", defaultStoreInterval,
 		"Number of seconds to periodically save metrics")
+
+	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
+		"Sign key for metrics")
 }
 
 func Execute() error {
