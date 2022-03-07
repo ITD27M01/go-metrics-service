@@ -120,6 +120,12 @@ func (fs *FileStore) sync() {
 	fs.syncChannel <- struct{}{}
 }
 
+func (fs *FileStore) Ping() error {
+	_, err := fs.file.Stat()
+
+	return err
+}
+
 func (fs *FileStore) Close() error {
 	if err := fs.SaveMetrics(); err != nil {
 		log.Printf("Something went wrong durin metrics preserve %q", err)

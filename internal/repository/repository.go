@@ -16,6 +16,8 @@ type Store interface {
 	GetMetric(name string) (*metrics.Metric, bool)
 	GetMetrics() map[string]*metrics.Metric
 
+	Ping() error
+
 	SaveMetrics() error
 	LoadMetrics() error
 	Close() error

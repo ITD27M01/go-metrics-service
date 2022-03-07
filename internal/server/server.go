@@ -19,6 +19,7 @@ type Config struct {
 	StoreFilePath string        `env:"STORE_FILE"`
 	Restore       bool          `env:"RESTORE"`
 	SignKey       string        `env:"KEY"`
+	DatabaseDSN   string        `env:"DATABASE_DSN"`
 
 	MetricsStore repository.Store
 }
@@ -34,12 +35,13 @@ func (s *MetricsServer) Start(ctx context.Context) {
 
 	s.context = serverContext
 
-	syncChannel := initStore(s.Cfg)
+	storeContext, storeCancel := context.WithCancel(ctx)
+	syncChannel := initStore(storeContext, s.Cfg)
 	metricsPreserver := preserver.NewPreserver(s.Cfg.MetricsStore, s.Cfg.StoreInterval, syncChannel)
 	preserverContext, preserverCancel := context.WithCancel(ctx)
 
 	if s.Cfg.Restore && s.Cfg.MetricsStore.LoadMetrics() != nil {
-		log.Println("Filed to load metrics from file")
+		log.Println("Filed to load metrics from store")
 	}
 
 	go metricsPreserver.RunPreserver(preserverContext)
@@ -55,6 +57,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	if err := s.Cfg.MetricsStore.Close(); err != nil {
 		log.Printf("Could not close filestore: %q", err)
 	}
+	storeCancel()
 
 	serverCancel()
 }
