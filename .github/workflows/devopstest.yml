@@ -210,6 +210,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
+            -database-dsn='' \
             -file-storage-path=$TEMP_FILE
 
 # VII. Задание к седьмому инкременту.
@@ -236,6 +237,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
+            -database-dsn='' \
             -file-storage-path=$TEMP_FILE
 
 # VIII. Задание к восьмому инкременту.
@@ -253,6 +255,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
+            -database-dsn='' \
             -file-storage-path=$TEMP_FILE
 
 # IX. Задание к девятому инкременту.
@@ -299,6 +302,7 @@ jobs:
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
             -file-storage-path=$TEMP_FILE \
+            -database-dsn='' \
             -key="${TEMP_FILE}"
 
 # X. Задание к десятому инкременту.
