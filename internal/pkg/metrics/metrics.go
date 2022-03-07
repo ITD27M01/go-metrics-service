@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -60,10 +60,12 @@ func (m *Metric) getHash(key string) string {
 		metricString = fmt.Sprintf("%s:%s:%f", GaugeMetricTypeName, m.ID, *(m.Value))
 	case CounterMetricTypeName:
 		metricString = fmt.Sprintf("%s:%s:%d", CounterMetricTypeName, m.ID, *(m.Delta))
+	default:
+		log.Printf("unsupported metric type: %s", m.MType)
 	}
 
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(metricString))
 
-	return hex.EncodeToString(mac.Sum(nil))
+	return fmt.Sprintf("%x", mac.Sum(nil))
 }
