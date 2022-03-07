@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 )
@@ -64,5 +63,5 @@ func (m *Metric) getHash(key string) string {
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write([]byte(metricString))
 
-	return hex.EncodeToString(h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
