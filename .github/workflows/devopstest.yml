@@ -210,7 +210,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='' \
+            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -file-storage-path=$TEMP_FILE
 
 # VII. Задание к седьмому инкременту.
@@ -237,7 +237,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='' \
+            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -file-storage-path=$TEMP_FILE
 
 # VIII. Задание к восьмому инкременту.
@@ -255,7 +255,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='' \
+            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -file-storage-path=$TEMP_FILE
 
 # IX. Задание к девятому инкременту.
@@ -302,7 +302,7 @@ jobs:
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
             -file-storage-path=$TEMP_FILE \
-            -database-dsn='' \
+            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -key="${TEMP_FILE}"
 
 # X. Задание к десятому инкременту.

@@ -13,7 +13,7 @@ func main() {
 	if err := cmd.Execute(); err != nil {
 		log.Fatalf("Failed to parse command line arguments: %q", err)
 	}
-	// urlExample := "postgres://dbuser:dbpass@localhost:5432/metrics"
+
 	metricsServerConfig := server.Config{
 		ServerAddress: cmd.ServerAddress,
 		StoreInterval: cmd.StoreInterval,
