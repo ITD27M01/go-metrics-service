@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -165,7 +166,11 @@ func (db *DBStore) migrate() error {
 		return err
 	}
 
-	return migration.Up()
+	if !errors.Is(migration.Up(), migrate.ErrNoChange) {
+		return err
+	}
+
+	return nil
 }
 
 func (db *DBStore) sync() {
