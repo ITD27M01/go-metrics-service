@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
@@ -32,19 +31,11 @@ type MetricsServer struct {
 
 func (s *MetricsServer) Start(ctx context.Context) {
 	serverContext, serverCancel := context.WithCancel(ctx)
-
 	s.context = serverContext
 
 	storeContext, storeCancel := context.WithCancel(ctx)
-	syncChannel := initStore(storeContext, s.Cfg)
-	metricsPreserver := preserver.NewPreserver(s.Cfg.MetricsStore, s.Cfg.StoreInterval, syncChannel)
-	preserverContext, preserverCancel := context.WithCancel(ctx)
 
-	if s.Cfg.Restore && s.Cfg.MetricsStore.LoadMetrics() != nil {
-		log.Println("Filed to load metrics from store")
-	}
-
-	go metricsPreserver.RunPreserver(preserverContext)
+	closeStore := runStore(storeContext, s.Cfg)
 
 	go s.startListener()
 	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
@@ -52,10 +43,8 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	log.Printf("%s signal received, graceful shutdown the server", <-getSignalChannel())
 	s.stopListener()
 
-	preserverCancel()
-
-	if err := s.Cfg.MetricsStore.Close(); err != nil {
-		log.Printf("Could not close filestore: %q", err)
+	if err := closeStore(); err != nil {
+		log.Printf("Some error ocured while store close: %q", err)
 	}
 	storeCancel()
 

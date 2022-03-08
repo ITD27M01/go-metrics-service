@@ -43,15 +43,24 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 		case <-reportTicker.C:
 			SendReport(ctx, mtr, serverURL, &client)
 			SendReportJSON(ctx, mtr, serverURL, &client, rw.Cfg.SignKey)
-			resetCounters(mtr)
+			resetCounters(ctx, mtr)
 		}
 	}
 }
 
 func SendReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	defer getCancel()
+
+	metricsMap, err := mtr.GetMetrics(getContext)
+	if err != nil {
+		log.Printf("Some error occured during metrics get: %q", err)
+	}
+
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	var stringifyMetricValue string
-	for _, v := range mtr.GetMetrics() {
+
+	for _, v := range metricsMap {
 		if v.MType == metrics.GaugeMetricTypeName {
 			stringifyMetricValue = fmt.Sprintf("%f", *v.Value)
 		} else {
@@ -66,9 +75,17 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 }
 
 func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
+	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	defer getCancel()
+
+	metricsMap, err := mtr.GetMetrics(getContext)
+	if err != nil {
+		log.Printf("Some error occured during metrics get: %q", err)
+	}
+
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
-	for _, v := range mtr.GetMetrics() {
+	for _, v := range metricsMap {
 		err := sendMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
 			log.Println(err)
@@ -142,8 +159,11 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 	return nil
 }
 
-func resetCounters(mtr repository.Store) {
-	if err := mtr.ResetCounterMetric("PollCount"); err != nil {
+func resetCounters(ctx context.Context, mtr repository.Store) {
+	resetContext, resetCancel := context.WithTimeout(ctx, storeTimeout)
+	defer resetCancel()
+
+	if err := mtr.ResetCounterMetric(resetContext, "PollCount"); err != nil {
 		log.Printf("couldn't reset counter: %q", err)
 	}
 }

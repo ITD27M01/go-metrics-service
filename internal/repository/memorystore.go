@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -20,7 +21,7 @@ func NewInMemoryStore() *InMemoryStore {
 	return &m
 }
 
-func (m *InMemoryStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) error {
+func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string, metricData metrics.Counter) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -41,7 +42,7 @@ func (m *InMemoryStore) UpdateCounterMetric(metricName string, metricData metric
 	return nil
 }
 
-func (m *InMemoryStore) ResetCounterMetric(metricName string) error {
+func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -63,7 +64,7 @@ func (m *InMemoryStore) ResetCounterMetric(metricName string) error {
 	return nil
 }
 
-func (m *InMemoryStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) error {
+func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, metricData metrics.Gauge) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -84,18 +85,14 @@ func (m *InMemoryStore) UpdateGaugeMetric(metricName string, metricData metrics.
 	return nil
 }
 
-func (m *InMemoryStore) GetMetric(metricName string) (*metrics.Metric, bool) {
+func (m *InMemoryStore) GetMetric(_ context.Context, metricName string) (*metrics.Metric, bool, error) {
 	metric, ok := m.metricsCache[metricName]
 
-	return metric, ok
+	return metric, ok, nil
 }
 
-func (m *InMemoryStore) GetMetrics() map[string]*metrics.Metric {
-	return m.metricsCache
+func (m *InMemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
+	return m.metricsCache, nil
 }
 
-func (m *InMemoryStore) Ping() error { return nil }
-
-func (m *InMemoryStore) SaveMetrics() error { return nil }
-func (m *InMemoryStore) LoadMetrics() error { return nil }
-func (m *InMemoryStore) Close() error       { return nil }
+func (m *InMemoryStore) Ping(_ context.Context) error { return nil }

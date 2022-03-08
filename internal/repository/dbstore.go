@@ -6,32 +6,26 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/itd27m01/go-metrics-service/internal/db/migrations"
+	"github.com/itd27m01/go-metrics-service/db/migrations"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	_ "github.com/jackc/pgx/v4/stdlib" // init postgresql driver
 )
 
 const (
-	psqlDriverName      = "pgx"
-	psqlTimeout         = 1 * time.Second
-	migrationSourceName = "go-bindata"
+	psqlDriverName       = "pgx"
+	psqlMetricsTableName = "metrics"
+	migrationSourceName  = "go-bindata"
 )
 
 type DBStore struct {
-	connection   *sql.DB
-	context      context.Context
-	syncChannel  chan struct{}
-	metricsCache map[string]*metrics.Metric
-	mu           sync.Mutex
+	connection *sql.DB
 }
 
-func NewDBStore(ctx context.Context, databaseDSN string, syncChannel chan struct{}) (*DBStore, error) {
+func NewDBStore(databaseDSN string) (*DBStore, error) {
 	var db DBStore
 
 	conn, err := sql.Open(psqlDriverName, databaseDSN)
@@ -39,12 +33,8 @@ func NewDBStore(ctx context.Context, databaseDSN string, syncChannel chan struct
 		return nil, err
 	}
 
-	metricsCache := make(map[string]*metrics.Metric)
 	db = DBStore{
-		connection:   conn,
-		context:      ctx,
-		syncChannel:  syncChannel,
-		metricsCache: metricsCache,
+		connection: conn,
 	}
 
 	if err := db.migrate(); err != nil {
@@ -54,93 +44,152 @@ func NewDBStore(ctx context.Context, databaseDSN string, syncChannel chan struct
 	return &db, nil
 }
 
-func (db *DBStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) error {
-	db.mu.Lock()
-	defer db.sync()
-	defer db.mu.Unlock()
+func (db *DBStore) UpdateCounterMetric(ctx context.Context, metricName string, metricData metrics.Counter) error {
+	var metricType string
 
-	currentMetric, ok := db.metricsCache[metricName]
+	row := db.connection.QueryRowContext(ctx,
+		"SELECT metric_type FROM metrics WHERE metric_id = $1", metricName)
+	err := row.Scan(&metricType)
+
 	switch {
-	case ok && currentMetric.Delta != nil:
-		*(currentMetric.Delta) += metricData
-	case ok && currentMetric.Delta == nil:
-		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
-	default:
-		db.metricsCache[metricName] = &metrics.Metric{
-			ID:    metricName,
-			MType: metrics.CounterMetricTypeName,
-			Delta: &metricData,
-		}
-	}
+	case errors.Is(err, sql.ErrNoRows):
+		_, err := db.connection.ExecContext(ctx,
+			"INSERT INTO metrics (metric_id, metric_type, metric_delta) VALUES ($1, $2, $3)",
+			metricName, metrics.CounterMetricTypeName, metricData)
 
-	return nil
+		return err
+	case errors.Is(err, nil):
+		if metricType != metrics.CounterMetricTypeName {
+			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
+		}
+
+		_, err := db.connection.ExecContext(ctx,
+			"UPDATE metrics set metric_delta = $1 WHERE metric_id = $2",
+			metricData, metricName)
+
+		return err
+	default:
+		return err
+	}
 }
 
-func (db *DBStore) ResetCounterMetric(metricName string) error {
-	db.mu.Lock()
-	defer db.sync()
-	defer db.mu.Unlock()
-
+func (db *DBStore) ResetCounterMetric(ctx context.Context, metricName string) error {
 	var zero metrics.Counter
-	currentMetric, ok := db.metricsCache[metricName]
+	var metricType string
+
+	row := db.connection.QueryRowContext(ctx,
+		"SELECT metric_type FROM metrics WHERE metric_id = $1", metricName)
+	err := row.Scan(&metricType)
+
 	switch {
-	case ok && currentMetric.Delta != nil:
-		*(currentMetric.Delta) = zero
-	case ok && currentMetric.Delta == nil:
-		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
-	default:
-		db.metricsCache[metricName] = &metrics.Metric{
-			ID:    metricName,
-			MType: metrics.CounterMetricTypeName,
-			Delta: &zero,
+	case errors.Is(err, sql.ErrNoRows):
+		_, err := db.connection.ExecContext(ctx,
+			"INSERT INTO metrics (metric_id, metric_type, metric_delta) VALUES ($1, $2, $3)",
+			metricName, metrics.CounterMetricTypeName, zero)
+
+		return err
+	case errors.Is(err, nil):
+		if metricType != metrics.CounterMetricTypeName {
+			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
 		}
+
+		_, err := db.connection.ExecContext(ctx,
+			"UPDATE metrics set metric_delta = $1 WHERE metric_id = $2",
+			zero, metricName)
+
+		return err
+	default:
+		return err
+	}
+}
+
+func (db *DBStore) UpdateGaugeMetric(ctx context.Context, metricName string, metricData metrics.Gauge) error {
+	var metricType string
+
+	row := db.connection.QueryRowContext(ctx,
+		"SELECT metric_type FROM metrics WHERE metric_id = $1",
+		metricName)
+	err := row.Scan(&metricType)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		_, err := db.connection.ExecContext(ctx,
+			"INSERT INTO metrics (metric_id, metric_type, metric_value) VALUES ($1, $2, $3)",
+			metricName, metrics.GaugeMetricTypeName, metricData)
+
+		return err
+	case errors.Is(err, nil):
+		if metricType != metrics.GaugeMetricTypeName {
+			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
+		}
+
+		_, err := db.connection.ExecContext(ctx,
+			"UPDATE metrics set metric_value = $1 WHERE metric_id = $2",
+			metricData, metricName)
+
+		return err
+	default:
+		return err
+	}
+}
+
+func (db *DBStore) GetMetric(ctx context.Context, metricName string) (*metrics.Metric, bool, error) {
+	metric := metrics.Metric{}
+
+	row := db.connection.QueryRowContext(ctx,
+		"SELECT metric_id,metric_type,metric_delta,metric_value FROM metrics WHERE metric_id = $1",
+		metricName)
+	err := row.Scan(&metric.ID, &metric.MType, metric.Delta, metric.Value)
+
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, false, nil
+	case errors.Is(err, nil):
+		return &metric, true, nil
+	default:
+		log.Printf("Could't get mertic: %q", err)
+
+		return nil, false, err
+	}
+}
+
+func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, error) {
+	metricsCache := make(map[string]*metrics.Metric)
+
+	rows, err := db.connection.QueryContext(ctx,
+		"SELECT metric_id,metric_type,metric_delta,metric_value FROM $1", psqlMetricsTableName)
+
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("Couldn't close rows: %q", err)
+		}
+	}(rows)
+
+	for rows.Next() {
+		var metric metrics.Metric
+		err = rows.Scan(&metric.ID, &metric.MType, metric.Delta, metric.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		metricsCache[metric.ID] = &metric
 	}
 
-	return nil
-}
-
-func (db *DBStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) error {
-	db.mu.Lock()
-	defer db.sync()
-	defer db.mu.Unlock()
-
-	currentMetric, ok := db.metricsCache[metricName]
-	switch {
-	case ok && currentMetric.Value != nil:
-		*(currentMetric.Value) = metricData
-	case ok && currentMetric.Value == nil:
-		return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, currentMetric.MType)
-	default:
-		db.metricsCache[metricName] = &metrics.Metric{
-			ID:    metricName,
-			MType: metrics.GaugeMetricTypeName,
-			Value: &metricData,
-		}
+	err = rows.Err()
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return metricsCache, nil
 }
 
-func (db *DBStore) GetMetric(metricName string) (*metrics.Metric, bool) {
-	metric, ok := db.metricsCache[metricName]
-
-	return metric, ok
-}
-
-func (db *DBStore) GetMetrics() map[string]*metrics.Metric {
-	return db.metricsCache
-}
-
-func (db *DBStore) Ping() error {
-	ctx, cancel := context.WithTimeout(db.context, psqlTimeout)
-	defer cancel()
-
+func (db *DBStore) Ping(ctx context.Context) error {
 	return db.connection.PingContext(ctx)
 }
-
-func (db *DBStore) SaveMetrics() error { return nil }
-
-func (db *DBStore) LoadMetrics() error { return nil }
 
 func (db *DBStore) Close() error {
 	log.Println("Close database connection")
@@ -166,13 +215,9 @@ func (db *DBStore) migrate() error {
 		return err
 	}
 
-	if !errors.Is(migration.Up(), migrate.ErrNoChange) {
+	if err := migration.Up(); !errors.Is(err, migrate.ErrNoChange) {
 		return err
 	}
 
 	return nil
-}
-
-func (db *DBStore) sync() {
-	db.syncChannel <- struct{}{}
 }

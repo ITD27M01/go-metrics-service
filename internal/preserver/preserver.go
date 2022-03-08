@@ -9,12 +9,12 @@ import (
 )
 
 type Preserver struct {
-	store         repository.Store
+	store         *repository.FileStore
 	storeInterval time.Duration
 	syncChannel   chan struct{}
 }
 
-func NewPreserver(store repository.Store, storeInterval time.Duration, syncChannel chan struct{}) *Preserver {
+func NewPreserver(store *repository.FileStore, storeInterval time.Duration, syncChannel chan struct{}) *Preserver {
 	p := Preserver{
 		store:         store,
 		storeInterval: storeInterval,

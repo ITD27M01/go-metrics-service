@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -39,7 +40,7 @@ func NewFileStore(filePath string, syncChannel chan struct{}) (*FileStore, error
 	return &fs, nil
 }
 
-func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.Counter) error {
+func (fs *FileStore) UpdateCounterMetric(_ context.Context, metricName string, metricData metrics.Counter) error {
 	fs.mu.Lock()
 	defer fs.sync()
 	defer fs.mu.Unlock()
@@ -61,7 +62,7 @@ func (fs *FileStore) UpdateCounterMetric(metricName string, metricData metrics.C
 	return nil
 }
 
-func (fs *FileStore) ResetCounterMetric(metricName string) error {
+func (fs *FileStore) ResetCounterMetric(_ context.Context, metricName string) error {
 	fs.mu.Lock()
 	defer fs.sync()
 	defer fs.mu.Unlock()
@@ -84,7 +85,7 @@ func (fs *FileStore) ResetCounterMetric(metricName string) error {
 	return nil
 }
 
-func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gauge) error {
+func (fs *FileStore) UpdateGaugeMetric(_ context.Context, metricName string, metricData metrics.Gauge) error {
 	fs.mu.Lock()
 	defer fs.sync()
 	defer fs.mu.Unlock()
@@ -106,21 +107,21 @@ func (fs *FileStore) UpdateGaugeMetric(metricName string, metricData metrics.Gau
 	return nil
 }
 
-func (fs *FileStore) GetMetric(metricName string) (*metrics.Metric, bool) {
+func (fs *FileStore) GetMetric(_ context.Context, metricName string) (*metrics.Metric, bool, error) {
 	metric, ok := fs.metricsCache[metricName]
 
-	return metric, ok
+	return metric, ok, nil
 }
 
-func (fs *FileStore) GetMetrics() map[string]*metrics.Metric {
-	return fs.metricsCache
+func (fs *FileStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
+	return fs.metricsCache, nil
 }
 
 func (fs *FileStore) sync() {
 	fs.syncChannel <- struct{}{}
 }
 
-func (fs *FileStore) Ping() error {
+func (fs *FileStore) Ping(_ context.Context) error {
 	_, err := fs.file.Stat()
 
 	return err
