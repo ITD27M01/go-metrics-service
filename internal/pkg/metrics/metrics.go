@@ -69,3 +69,14 @@ func (m *Metric) getHash(key string) string {
 
 	return hex.EncodeToString(mac.Sum(nil))
 }
+
+func (m *Metric) String() string {
+	switch m.MType {
+	case GaugeMetricTypeName:
+		return fmt.Sprintf("%g", *(m.Value))
+	case CounterMetricTypeName:
+		return fmt.Sprintf("%d", *(m.Delta))
+	default:
+		return ""
+	}
+}

@@ -107,7 +107,7 @@ func (fs *FileStore) UpdateGaugeMetric(_ context.Context, metricName string, met
 	return nil
 }
 
-func (fs *FileStore) GetMetric(_ context.Context, metricName string) (*metrics.Metric, bool, error) {
+func (fs *FileStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, bool, error) {
 	metric, ok := fs.metricsCache[metricName]
 
 	return metric, ok, nil

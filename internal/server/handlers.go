@@ -198,7 +198,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
-		metricData, ok, err := metricsStore.GetMetric(requestContext, metric.ID)
+		metricData, ok, err := metricsStore.GetMetric(requestContext, metric.ID, metric.MType)
 		if err != nil {
 			http.Error(
 				w,
@@ -209,7 +209,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 			return
 		}
 
-		if !ok || metric.MType != metricData.MType {
+		if !ok {
 			http.Error(
 				w,
 				fmt.Sprintf("Metric not found: %s", metric.ID),
@@ -223,7 +223,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 
 		encodedMetric, err := metricData.EncodeMetric()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusInternalServerError)
 
 			return
 		}
@@ -240,69 +240,37 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 		metricType := chi.URLParam(r, "metricType")
 		metricName := chi.URLParam(r, "metricName")
 
-		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
-		defer requestCancel()
-
-		var stringifyMetricData string
-		switch metricType {
-		case metrics.GaugeMetricTypeName:
-			metricData, ok, err := metricsStore.GetMetric(requestContext, metricName)
-			if err != nil {
-				http.Error(
-					w,
-					fmt.Sprintf("Filed to get metric: %q", err),
-					http.StatusInternalServerError,
-				)
-
-				return
-			}
-
-			if ok && metricData.Value != nil {
-				stringifyMetricData = fmt.Sprintf("%g", *metricData.Value)
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metricName),
-					http.StatusNotFound,
-				)
-
-				return
-			}
-
-		case metrics.CounterMetricTypeName:
-			metricData, ok, err := metricsStore.GetMetric(requestContext, metricName)
-			if err != nil {
-				http.Error(
-					w,
-					fmt.Sprintf("Filed to get metric: %q", err),
-					http.StatusInternalServerError,
-				)
-
-				return
-			}
-
-			if ok && metricData.Delta != nil {
-				stringifyMetricData = fmt.Sprintf("%d", *metricData.Delta)
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metricName),
-					http.StatusNotFound,
-				)
-
-				return
-			}
-		default:
+		if metricType != metrics.GaugeMetricTypeName && metricType != metrics.CounterMetricTypeName {
 			http.Error(
 				w,
 				fmt.Sprintf("Metric type not implemented: %s", metricType),
 				http.StatusNotImplemented,
 			)
-
 			return
 		}
 
-		_, err := w.Write([]byte(stringifyMetricData))
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
+		metricData, ok, err := metricsStore.GetMetric(requestContext, metricName, metricType)
+		if err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("Filed to get metric: %q", err),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		if !ok {
+			http.Error(
+				w,
+				fmt.Sprintf("Metric not found: %s", metricName),
+				http.StatusNotFound,
+			)
+			return
+		}
+
+		_, err = w.Write([]byte(metricData.String()))
 		if err != nil {
 			http.Error(
 				w,

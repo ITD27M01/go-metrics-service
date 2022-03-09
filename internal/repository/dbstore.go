@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -45,119 +44,78 @@ func NewDBStore(databaseDSN string) (*DBStore, error) {
 }
 
 func (db *DBStore) UpdateCounterMetric(ctx context.Context, metricName string, metricData metrics.Counter) error {
-	var metricType string
+	_, err := db.connection.ExecContext(ctx,
+		"INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) "+
+			"ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2",
+		metricName, metricData)
 
-	row := db.connection.QueryRowContext(ctx,
-		"SELECT metric_type FROM metrics WHERE metric_id = $1", metricName)
-	err := row.Scan(&metricType)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		_, err := db.connection.ExecContext(ctx,
-			"INSERT INTO metrics (metric_id, metric_type, metric_delta) VALUES ($1, $2, $3)",
-			metricName, metrics.CounterMetricTypeName, metricData)
-
-		return err
-	case errors.Is(err, nil):
-		if metricType != metrics.CounterMetricTypeName {
-			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
-		}
-
-		_, err := db.connection.ExecContext(ctx,
-			"UPDATE metrics set metric_delta = $1 WHERE metric_id = $2",
-			metricData, metricName)
-
-		return err
-	default:
-		return err
-	}
+	return err
 }
 
 func (db *DBStore) ResetCounterMetric(ctx context.Context, metricName string) error {
 	var zero metrics.Counter
-	var metricType string
+	_, err := db.connection.ExecContext(ctx,
+		"INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) "+
+			"ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2",
+		metricName, zero)
 
-	row := db.connection.QueryRowContext(ctx,
-		"SELECT metric_type FROM metrics WHERE metric_id = $1", metricName)
-	err := row.Scan(&metricType)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		_, err := db.connection.ExecContext(ctx,
-			"INSERT INTO metrics (metric_id, metric_type, metric_delta) VALUES ($1, $2, $3)",
-			metricName, metrics.CounterMetricTypeName, zero)
-
-		return err
-	case errors.Is(err, nil):
-		if metricType != metrics.CounterMetricTypeName {
-			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
-		}
-
-		_, err := db.connection.ExecContext(ctx,
-			"UPDATE metrics set metric_delta = $1 WHERE metric_id = $2",
-			zero, metricName)
-
-		return err
-	default:
-		return err
-	}
+	return err
 }
 
 func (db *DBStore) UpdateGaugeMetric(ctx context.Context, metricName string, metricData metrics.Gauge) error {
-	var metricType string
+	_, err := db.connection.ExecContext(ctx,
+		"INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2) "+
+			"ON CONFLICT (metric_id) DO UPDATE SET metric_value = $2",
+		metricName, metricData)
 
-	row := db.connection.QueryRowContext(ctx,
-		"SELECT metric_type FROM metrics WHERE metric_id = $1",
-		metricName)
-	err := row.Scan(&metricType)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		_, err := db.connection.ExecContext(ctx,
-			"INSERT INTO metrics (metric_id, metric_type, metric_value) VALUES ($1, $2, $3)",
-			metricName, metrics.GaugeMetricTypeName, metricData)
-
-		return err
-	case errors.Is(err, nil):
-		if metricType != metrics.GaugeMetricTypeName {
-			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metricName, metricType)
-		}
-
-		_, err := db.connection.ExecContext(ctx,
-			"UPDATE metrics set metric_value = $1 WHERE metric_id = $2",
-			metricData, metricName)
-
-		return err
-	default:
-		return err
-	}
+	return err
 }
 
-func (db *DBStore) GetMetric(ctx context.Context, metricName string) (*metrics.Metric, bool, error) {
-	metric := metrics.Metric{}
-
-	row := db.connection.QueryRowContext(ctx,
-		"SELECT metric_id,metric_type,metric_delta,metric_value FROM metrics WHERE metric_id = $1",
-		metricName)
-	err := row.Scan(&metric.ID, &metric.MType, metric.Delta, metric.Value)
-
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return nil, false, nil
-	case errors.Is(err, nil):
-		return &metric, true, nil
-	default:
-		log.Printf("Could't get mertic: %q", err)
-
-		return nil, false, err
+func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType string) (*metrics.Metric, bool, error) {
+	metric := metrics.Metric{
+		ID:    metricName,
+		MType: metricType,
 	}
+
+	switch metricType {
+	case metrics.CounterMetricTypeName:
+		var counter metrics.Counter
+		row := db.connection.QueryRowContext(ctx,
+			"SELECT metric_delta FROM counter WHERE metric_id = $1", metricName)
+
+		err := row.Scan(&counter)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, false, nil
+		case !errors.Is(err, nil):
+			return nil, false, err
+		}
+		metric.Delta = &counter
+	case metrics.GaugeMetricTypeName:
+		var gauge metrics.Gauge
+		row := db.connection.QueryRowContext(ctx,
+			"SELECT metric_value FROM gauge WHERE metric_id = $1", metricName)
+
+		err := row.Scan(&gauge)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, false, nil
+		case !errors.Is(err, nil):
+			return nil, false, err
+		}
+		metric.Value = &gauge
+	default:
+		return nil, false, nil
+	}
+
+	return &metric, true, nil
 }
 
 func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, error) {
-	metricsCache := make(map[string]*metrics.Metric)
+	metricsMap := make(map[string]*metrics.Metric)
 
-	rows, err := db.connection.QueryContext(ctx,
-		"SELECT metric_id,metric_type,metric_delta,metric_value FROM $1", psqlMetricsTableName)
+	counters, err := db.connection.QueryContext(ctx,
+		"SELECT metric_id,metric_delta FROM counter")
 
 	if err != nil {
 		return nil, err
@@ -167,24 +125,52 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 		if err != nil {
 			log.Printf("Couldn't close rows: %q", err)
 		}
-	}(rows)
+	}(counters)
 
-	for rows.Next() {
+	for counters.Next() {
 		var metric metrics.Metric
-		err = rows.Scan(&metric.ID, &metric.MType, metric.Delta, metric.Value)
+		err = counters.Scan(&metric.ID, metrics.CounterMetricTypeName, metric.Delta)
 		if err != nil {
 			return nil, err
 		}
 
-		metricsCache[metric.ID] = &metric
+		metricsMap[metric.ID] = &metric
 	}
 
-	err = rows.Err()
+	err = counters.Err()
 	if err != nil {
 		return nil, err
 	}
 
-	return metricsCache, nil
+	gauges, err := db.connection.QueryContext(ctx,
+		"SELECT metric_id,metric_value FROM gauge")
+
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("Couldn't close rows: %q", err)
+		}
+	}(gauges)
+
+	for gauges.Next() {
+		var metric metrics.Metric
+		err = gauges.Scan(&metric.ID, metrics.GaugeMetricTypeName, metric.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		metricsMap[metric.ID] = &metric
+	}
+
+	err = gauges.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return metricsMap, nil
 }
 
 func (db *DBStore) Ping(ctx context.Context) error {

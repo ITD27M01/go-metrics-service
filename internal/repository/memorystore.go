@@ -85,7 +85,7 @@ func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, 
 	return nil
 }
 
-func (m *InMemoryStore) GetMetric(_ context.Context, metricName string) (*metrics.Metric, bool, error) {
+func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, bool, error) {
 	metric, ok := m.metricsCache[metricName]
 
 	return metric, ok, nil
