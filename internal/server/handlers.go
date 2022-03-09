@@ -24,9 +24,24 @@ const (
 )
 
 func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
+	mux.Route("/ping", PingHandler(metricsStore))
 	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
 	mux.Route("/value/", GetMetricHandler(metricsStore, signKey))
 	mux.Route("/", GetMetricsHandler(metricsStore))
+}
+
+func PingHandler(metricsStore repository.Store) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			if err := metricsStore.Ping(); err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Something went wrong during server ping: %q", err),
+					http.StatusInternalServerError,
+				)
+			}
+		})
+	}
 }
 
 func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {

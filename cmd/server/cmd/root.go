@@ -23,6 +23,7 @@ var (
 	StoreInterval time.Duration
 	StoreFilePath string
 	SignKey       string
+	DatabaseDSN   string
 )
 
 func init() {
@@ -40,6 +41,9 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
 		"Sign key for metrics")
+
+	rootCmd.Flags().StringVarP(&DatabaseDSN, "databaseDSN", "d", "",
+		"Database DSN for metrics store")
 }
 
 func Execute() error {

@@ -94,6 +94,8 @@ func (m *InMemoryStore) GetMetrics() map[string]*metrics.Metric {
 	return m.metricsCache
 }
 
+func (m *InMemoryStore) Ping() error { return nil }
+
 func (m *InMemoryStore) SaveMetrics() error { return nil }
 func (m *InMemoryStore) LoadMetrics() error { return nil }
 func (m *InMemoryStore) Close() error       { return nil }
