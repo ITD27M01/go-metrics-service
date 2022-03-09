@@ -12,6 +12,7 @@ import (
 
 const (
 	counterIncrement = 1
+	storeTimeout     = 1 * time.Second
 )
 
 type PollerConfig struct {
@@ -26,51 +27,54 @@ func (pw *PollerWorker) Run(ctx context.Context, mtr repository.Store) {
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
 
+	storeContext, storeCancel := context.WithTimeout(ctx, storeTimeout)
+	defer storeCancel()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-pollTicker.C:
-			UpdateMemStatsMetrics(mtr)
+			UpdateMemStatsMetrics(storeContext, mtr)
 		}
 	}
 }
 
-func UpdateMemStatsMetrics(mtr repository.Store) {
+func UpdateMemStatsMetrics(ctx context.Context, mtr repository.Store) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	mtr.UpdateCounterMetric("PollCount", counterIncrement)
+	_ = mtr.UpdateCounterMetric(ctx, "PollCount", counterIncrement)
 
-	mtr.UpdateGaugeMetric("Alloc", metrics.Gauge(memStats.Alloc))
-	mtr.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "Alloc", metrics.Gauge(memStats.Alloc))
+	_ = mtr.UpdateGaugeMetric(ctx, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
 
-	mtr.UpdateGaugeMetric("BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
-	mtr.UpdateGaugeMetric("Frees", metrics.Gauge(memStats.Frees))
-	mtr.UpdateGaugeMetric("GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
-	mtr.UpdateGaugeMetric("GCSys", metrics.Gauge(memStats.GCSys))
-	mtr.UpdateGaugeMetric("HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
-	mtr.UpdateGaugeMetric("HeapIdle", metrics.Gauge(memStats.HeapIdle))
-	mtr.UpdateGaugeMetric("HeapInuse", metrics.Gauge(memStats.HeapInuse))
-	mtr.UpdateGaugeMetric("HeapObjects", metrics.Gauge(memStats.HeapObjects))
-	mtr.UpdateGaugeMetric("HeapReleased", metrics.Gauge(memStats.HeapReleased))
-	mtr.UpdateGaugeMetric("HeapSys", metrics.Gauge(memStats.HeapSys))
-	mtr.UpdateGaugeMetric("LastGC", metrics.Gauge(memStats.LastGC))
-	mtr.UpdateGaugeMetric("Lookups", metrics.Gauge(memStats.Lookups))
-	mtr.UpdateGaugeMetric("MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
-	mtr.UpdateGaugeMetric("MCacheSys", metrics.Gauge(memStats.MCacheSys))
-	mtr.UpdateGaugeMetric("MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
-	mtr.UpdateGaugeMetric("MSpanSys", metrics.Gauge(memStats.MSpanSys))
-	mtr.UpdateGaugeMetric("Mallocs", metrics.Gauge(memStats.Mallocs))
-	mtr.UpdateGaugeMetric("NextGC", metrics.Gauge(memStats.NextGC))
-	mtr.UpdateGaugeMetric("NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
-	mtr.UpdateGaugeMetric("NumGC", metrics.Gauge(memStats.NumGC))
-	mtr.UpdateGaugeMetric("OtherSys", metrics.Gauge(memStats.OtherSys))
-	mtr.UpdateGaugeMetric("PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
-	mtr.UpdateGaugeMetric("StackInuse", metrics.Gauge(memStats.StackInuse))
-	mtr.UpdateGaugeMetric("StackSys", metrics.Gauge(memStats.StackSys))
-	mtr.UpdateGaugeMetric("Sys", metrics.Gauge(memStats.Sys))
-	mtr.UpdateGaugeMetric("TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
+	_ = mtr.UpdateGaugeMetric(ctx, "BuckHashSys", metrics.Gauge(memStats.BuckHashSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "Frees", metrics.Gauge(memStats.Frees))
+	_ = mtr.UpdateGaugeMetric(ctx, "GCCPUFraction", metrics.Gauge(memStats.GCCPUFraction))
+	_ = mtr.UpdateGaugeMetric(ctx, "GCSys", metrics.Gauge(memStats.GCSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapAlloc", metrics.Gauge(memStats.HeapAlloc))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapIdle", metrics.Gauge(memStats.HeapIdle))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapInuse", metrics.Gauge(memStats.HeapInuse))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapObjects", metrics.Gauge(memStats.HeapObjects))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapReleased", metrics.Gauge(memStats.HeapReleased))
+	_ = mtr.UpdateGaugeMetric(ctx, "HeapSys", metrics.Gauge(memStats.HeapSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "LastGC", metrics.Gauge(memStats.LastGC))
+	_ = mtr.UpdateGaugeMetric(ctx, "Lookups", metrics.Gauge(memStats.Lookups))
+	_ = mtr.UpdateGaugeMetric(ctx, "MCacheInuse", metrics.Gauge(memStats.MCacheInuse))
+	_ = mtr.UpdateGaugeMetric(ctx, "MCacheSys", metrics.Gauge(memStats.MCacheSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "MSpanInuse", metrics.Gauge(memStats.MSpanInuse))
+	_ = mtr.UpdateGaugeMetric(ctx, "MSpanSys", metrics.Gauge(memStats.MSpanSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "Mallocs", metrics.Gauge(memStats.Mallocs))
+	_ = mtr.UpdateGaugeMetric(ctx, "NextGC", metrics.Gauge(memStats.NextGC))
+	_ = mtr.UpdateGaugeMetric(ctx, "NumForcedGC", metrics.Gauge(memStats.NumForcedGC))
+	_ = mtr.UpdateGaugeMetric(ctx, "NumGC", metrics.Gauge(memStats.NumGC))
+	_ = mtr.UpdateGaugeMetric(ctx, "OtherSys", metrics.Gauge(memStats.OtherSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "PauseTotalNs", metrics.Gauge(memStats.PauseTotalNs))
+	_ = mtr.UpdateGaugeMetric(ctx, "StackInuse", metrics.Gauge(memStats.StackInuse))
+	_ = mtr.UpdateGaugeMetric(ctx, "StackSys", metrics.Gauge(memStats.StackSys))
+	_ = mtr.UpdateGaugeMetric(ctx, "Sys", metrics.Gauge(memStats.Sys))
+	_ = mtr.UpdateGaugeMetric(ctx, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
 
-	mtr.UpdateGaugeMetric("RandomValue", metrics.Gauge(rand.Int63()))
+	_ = mtr.UpdateGaugeMetric(ctx, "RandomValue", metrics.Gauge(rand.Int63()))
 }

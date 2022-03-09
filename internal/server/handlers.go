@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"database/sql/driver"
 	_ "embed" // Use templates from file to render pages
 	"encoding/json"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
@@ -18,6 +21,7 @@ import (
 var metricsTemplateFile string
 
 const (
+	requestTimeout = 1 * time.Second
 	gaugeBitSize   = 64
 	counterBase    = 10
 	counterBitSize = 64
@@ -30,10 +34,13 @@ func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey strin
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
 
-func PingHandler(metricsStore repository.Store) func(r chi.Router) {
+func PingHandler(metricsStore driver.Pinger) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			if err := metricsStore.Ping(); err != nil {
+			requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+			defer requestCancel()
+
+			if err := metricsStore.Ping(requestContext); err != nil {
 				http.Error(
 					w,
 					fmt.Sprintf("Something went wrong during server ping: %q", err),
@@ -63,10 +70,20 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			metricsData := metricsStore.GetMetrics()
+			requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+			defer requestCancel()
+
+			metricsData, err := metricsStore.GetMetrics(requestContext)
+			if err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("Something went wrong during metrics get: %q", err),
+					http.StatusInternalServerError,
+				)
+			}
 
 			w.Header().Set("Content-Type", "text/html")
-			err := tmpl.Execute(w, metricsData)
+			err = tmpl.Execute(w, metricsData)
 			if err != nil {
 				http.Error(
 					w,
@@ -80,6 +97,9 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 
 func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
 		var metric metrics.Metric
 		err := json.NewDecoder(r.Body).Decode(&metric)
 		if err != nil {
@@ -96,7 +116,14 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 
 		switch {
 		case metric.MType == metrics.GaugeMetricTypeName:
-			err := metricsStore.UpdateGaugeMetric(metric.ID, *metric.Value)
+			if metric.Value == nil {
+				http.Error(
+					w,
+					"Value is required field",
+					http.StatusBadRequest,
+				)
+			}
+			err := metricsStore.UpdateGaugeMetric(requestContext, metric.ID, *metric.Value)
 			if err != nil {
 				http.Error(
 					w,
@@ -105,7 +132,14 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 				)
 			}
 		case metric.MType == metrics.CounterMetricTypeName:
-			err := metricsStore.UpdateCounterMetric(metric.ID, *metric.Delta)
+			if metric.Delta == nil {
+				http.Error(
+					w,
+					"Delta is required field",
+					http.StatusBadRequest,
+				)
+			}
+			err := metricsStore.UpdateCounterMetric(requestContext, metric.ID, *(metric.Delta))
 			if err != nil {
 				http.Error(
 					w,
@@ -129,12 +163,15 @@ func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWrite
 		metricName := chi.URLParam(r, "metricName")
 		metricData := chi.URLParam(r, "metricData")
 
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
 		var err error
 		switch {
 		case metricType == metrics.GaugeMetricTypeName:
-			err = updateGaugeMetric(metricName, metricData, metricsStore)
+			err = updateGauge(requestContext, metricName, metricData, metricsStore)
 		case metricType == metrics.CounterMetricTypeName:
-			err = updateCounterMetric(metricName, metricData, metricsStore)
+			err = updateCounter(requestContext, metricName, metricData, metricsStore)
 		default:
 			http.Error(
 				w,
@@ -158,9 +195,21 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 			return
 		}
 
-		log.Printf("Received request for metric %s and type %s", metric.ID, metric.MType)
-		metricData, ok := metricsStore.GetMetric(metric.ID)
-		if !ok || metric.MType != metricData.MType {
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
+		metricData, ok, err := metricsStore.GetMetric(requestContext, metric.ID, metric.MType)
+		if err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("Filed to get metric: %q", err),
+				http.StatusInternalServerError,
+			)
+
+			return
+		}
+
+		if !ok {
 			http.Error(
 				w,
 				fmt.Sprintf("Metric not found: %s", metric.ID),
@@ -174,7 +223,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 
 		encodedMetric, err := metricData.EncodeMetric()
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusInternalServerError)
 
 			return
 		}
@@ -191,46 +240,37 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 		metricType := chi.URLParam(r, "metricType")
 		metricName := chi.URLParam(r, "metricName")
 
-		var stringifyMetricData string
-		switch {
-		case metricType == metrics.GaugeMetricTypeName:
-			metricData, ok := metricsStore.GetMetric(metricName)
-			if ok && metricData.Value != nil {
-				stringifyMetricData = fmt.Sprintf("%g", *metricData.Value)
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metricName),
-					http.StatusNotFound,
-				)
-
-				return
-			}
-
-		case metricType == metrics.CounterMetricTypeName:
-			metricData, ok := metricsStore.GetMetric(metricName)
-			if ok && metricData.Delta != nil {
-				stringifyMetricData = fmt.Sprintf("%d", *metricData.Delta)
-			} else {
-				http.Error(
-					w,
-					fmt.Sprintf("Metric not found: %s", metricName),
-					http.StatusNotFound,
-				)
-
-				return
-			}
-		default:
+		if metricType != metrics.GaugeMetricTypeName && metricType != metrics.CounterMetricTypeName {
 			http.Error(
 				w,
 				fmt.Sprintf("Metric type not implemented: %s", metricType),
 				http.StatusNotImplemented,
 			)
-
 			return
 		}
 
-		_, err := w.Write([]byte(stringifyMetricData))
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
+		metricData, ok, err := metricsStore.GetMetric(requestContext, metricName, metricType)
+		if err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("Filed to get metric: %q", err),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+		if !ok {
+			http.Error(
+				w,
+				fmt.Sprintf("Metric not found: %s", metricName),
+				http.StatusNotFound,
+			)
+			return
+		}
+
+		_, err = w.Write([]byte(metricData.String()))
 		if err != nil {
 			http.Error(
 				w,
@@ -241,19 +281,19 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 	}
 }
 
-func updateGaugeMetric(metricName string, metricData string, metricsStore repository.Store) error {
+func updateGauge(ctx context.Context, metricName string, metricData string, metricsStore repository.Store) error {
 	parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize)
 	if err == nil {
-		return metricsStore.UpdateGaugeMetric(metricName, metrics.Gauge(parsedData))
+		return metricsStore.UpdateGaugeMetric(ctx, metricName, metrics.Gauge(parsedData))
 	}
 
 	return err
 }
 
-func updateCounterMetric(metricName string, metricData string, metricsStore repository.Store) error {
+func updateCounter(ctx context.Context, metricName string, metricData string, metricsStore repository.Store) error {
 	parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize)
 	if err == nil {
-		return metricsStore.UpdateCounterMetric(metricName, metrics.Counter(parsedData))
+		return metricsStore.UpdateCounterMetric(ctx, metricName, metrics.Counter(parsedData))
 	}
 
 	return err
