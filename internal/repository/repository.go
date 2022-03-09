@@ -14,6 +14,8 @@ type Store interface {
 	ResetCounterMetric(ctx context.Context, name string) error
 	UpdateGaugeMetric(ctx context.Context, name string, value metrics.Gauge) error
 
+	UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Metric) error
+
 	GetMetric(ctx context.Context, name string, metricType string) (*metrics.Metric, bool, error)
 	GetMetrics(ctx context.Context) (map[string]*metrics.Metric, error)
 

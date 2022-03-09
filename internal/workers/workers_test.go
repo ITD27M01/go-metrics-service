@@ -54,13 +54,13 @@ func TestReportWorker(t *testing.T) {
 		metricData := tokens[len(tokens)-1]
 
 		switch {
-		case metricType == metrics.GaugeMetricTypeName:
+		case metricType == metrics.MetricTypeGauge:
 			if _, err := strconv.ParseFloat(metricData, gaugeBitSize); err != nil {
 				t.Errorf("Cannot save provided data: %s", metricData)
 				http.Error(rw, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
 			}
 
-		case metricType == metrics.CounterMetricTypeName:
+		case metricType == metrics.MetricTypeCounter:
 			if _, err := strconv.ParseInt(metricData, counterBase, counterBitSize); err != nil {
 				t.Errorf("Cannot save provided data: %s", metricData)
 				http.Error(rw, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
@@ -93,13 +93,13 @@ func TestSendReportJSONWorker(t *testing.T) {
 		}
 
 		switch {
-		case metric.MType == metrics.GaugeMetricTypeName:
+		case metric.MType == metrics.MetricTypeGauge:
 			if m, ok, _ := mtr.GetMetric(context.Background(), metric.ID, ""); !ok || *m.Value != *metric.Value {
 				t.Errorf("Metric data mismatch: %f and %f", *m.Value, *metric.Value)
 				http.Error(w, fmt.Sprintf("Metric data mismatch: %f and %f", *m.Value, *metric.Value), http.StatusBadRequest)
 			}
 
-		case metric.MType == metrics.CounterMetricTypeName:
+		case metric.MType == metrics.MetricTypeCounter:
 			if m, ok, _ := mtr.GetMetric(context.Background(), metric.ID, ""); !ok || *m.Delta != *metric.Delta {
 				t.Errorf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta)
 				http.Error(w, fmt.Sprintf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta), http.StatusBadRequest)

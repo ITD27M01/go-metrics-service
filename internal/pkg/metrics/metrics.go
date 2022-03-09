@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	GaugeMetricTypeName   = "gauge"
-	CounterMetricTypeName = "counter"
+	MetricTypeGauge   = "gauge"
+	MetricTypeCounter = "counter"
 )
 
 type Gauge float64
@@ -56,10 +56,10 @@ func (m *Metric) IsHashValid(key string) bool {
 func (m *Metric) getHash(key string) string {
 	var metricString string
 	switch m.MType {
-	case GaugeMetricTypeName:
-		metricString = fmt.Sprintf("%s:%s:%f", m.ID, GaugeMetricTypeName, *(m.Value))
-	case CounterMetricTypeName:
-		metricString = fmt.Sprintf("%s:%s:%d", m.ID, CounterMetricTypeName, *(m.Delta))
+	case MetricTypeGauge:
+		metricString = fmt.Sprintf("%s:%s:%f", m.ID, MetricTypeGauge, *(m.Value))
+	case MetricTypeCounter:
+		metricString = fmt.Sprintf("%s:%s:%d", m.ID, MetricTypeCounter, *(m.Delta))
 	default:
 		log.Printf("unsupported metric type: %s", m.MType)
 	}
@@ -72,9 +72,9 @@ func (m *Metric) getHash(key string) string {
 
 func (m *Metric) String() string {
 	switch m.MType {
-	case GaugeMetricTypeName:
+	case MetricTypeGauge:
 		return fmt.Sprintf("%g", *(m.Value))
-	case CounterMetricTypeName:
+	case MetricTypeCounter:
 		return fmt.Sprintf("%d", *(m.Delta))
 	default:
 		return ""

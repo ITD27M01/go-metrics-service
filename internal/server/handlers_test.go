@@ -76,7 +76,7 @@ var testsJSON = []testJSON{
 		url:    "/update/",
 		metric: &metrics.Metric{
 			ID:    "Alloc",
-			MType: metrics.GaugeMetricTypeName,
+			MType: metrics.MetricTypeGauge,
 			Value: &gaugeValue,
 		},
 		want: want{
@@ -90,7 +90,7 @@ var testsJSON = []testJSON{
 		url:    "/value/",
 		metric: &metrics.Metric{
 			ID:    "Alloc",
-			MType: metrics.GaugeMetricTypeName,
+			MType: metrics.MetricTypeGauge,
 		},
 		want: want{
 			code: http.StatusOK,
