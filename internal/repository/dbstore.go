@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	psqlDriverName       = "pgx"
-	psqlMetricsTableName = "metrics"
-	migrationSourceName  = "go-bindata"
+	psqlDriverName      = "pgx"
+	migrationSourceName = "go-bindata"
 )
 
 type DBStore struct {
