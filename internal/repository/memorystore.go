@@ -34,7 +34,7 @@ func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string
 	default:
 		m.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
-			MType: metrics.CounterMetricTypeName,
+			MType: metrics.MetricTypeCounter,
 			Delta: &metricData,
 		}
 	}
@@ -56,7 +56,7 @@ func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string)
 	default:
 		m.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
-			MType: metrics.CounterMetricTypeName,
+			MType: metrics.MetricTypeCounter,
 			Delta: &zero,
 		}
 	}
@@ -77,8 +77,31 @@ func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, 
 	default:
 		m.metricsCache[metricName] = &metrics.Metric{
 			ID:    metricName,
-			MType: metrics.GaugeMetricTypeName,
+			MType: metrics.MetricTypeGauge,
 			Value: &metricData,
+		}
+	}
+
+	return nil
+}
+
+func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Metric) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, metric := range metricsBatch {
+		currentMetric, ok := m.metricsCache[metric.ID]
+		switch {
+		case ok && metric.MType == metrics.MetricTypeGauge && currentMetric.Value != nil:
+			currentMetric.Value = metric.Value
+		case ok && metric.MType == metrics.MetricTypeGauge && currentMetric.Value == nil:
+			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metric.ID, currentMetric.MType)
+		case ok && metric.MType == metrics.MetricTypeCounter && currentMetric.Delta != nil:
+			*(currentMetric.Delta) += *(metric.Delta)
+		case ok && metric.MType == metrics.MetricTypeCounter && currentMetric.Delta == nil:
+			return fmt.Errorf("%w %s:%s", ErrMetricTypeMismatch, metric.ID, currentMetric.MType)
+		default:
+			m.metricsCache[metric.ID] = metric
 		}
 	}
 

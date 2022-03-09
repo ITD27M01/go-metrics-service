@@ -1,7 +1,9 @@
 package workers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -34,15 +36,17 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 		Timeout: rw.Cfg.ServerTimeout,
 	}
 
-	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress + rw.Cfg.ServerPath
+	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
+	sendURL := serverURL + rw.Cfg.ServerPath
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
-			SendReport(ctx, mtr, serverURL, &client)
-			SendReportJSON(ctx, mtr, serverURL, &client, rw.Cfg.SignKey)
+			SendReport(ctx, mtr, sendURL, &client)
+			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey)
+			SendBatchJSON(ctx, mtr, serverURL, &client)
 			resetCounters(ctx, mtr)
 		}
 	}
@@ -61,7 +65,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 	var stringifyMetricValue string
 
 	for _, v := range metricsMap {
-		if v.MType == metrics.GaugeMetricTypeName {
+		if v.MType == metrics.MetricTypeGauge {
 			stringifyMetricValue = fmt.Sprintf("%f", *v.Value)
 		} else {
 			stringifyMetricValue = fmt.Sprintf("%d", *v.Delta)
@@ -90,6 +94,28 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 		if err != nil {
 			log.Println(err)
 		}
+	}
+}
+
+func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	defer getCancel()
+
+	metricsMap, err := mtr.GetMetrics(getContext)
+	if err != nil {
+		log.Printf("Some error ocured during metrics get: %q", err)
+	}
+
+	metricsSlice := make([]*metrics.Metric, 0)
+	for _, v := range metricsMap {
+		metricsSlice = append(metricsSlice, v)
+	}
+
+	serverURL = strings.TrimSuffix(serverURL, "/")
+	updateURL := fmt.Sprintf("%s/updates/", serverURL)
+
+	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
+		log.Println(err)
 	}
 }
 
@@ -142,6 +168,43 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 
 	resp, err := client.Do(req)
 	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server response: %s", resp.Status)
+	}
+	_, err = io.Copy(io.Discard, resp.Body)
+	if err != nil {
+		return err
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
+	var buf bytes.Buffer
+	jsonEncoder := json.NewEncoder(&buf)
+
+	if err := jsonEncoder.Encode(metrics); err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, &buf)
+	if err != nil {
+		log.Println(err)
+
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err)
+
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {

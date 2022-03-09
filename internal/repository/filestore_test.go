@@ -69,7 +69,7 @@ func TestFileStore_SaveMetrics(t *testing.T) {
 	metricsCache := make(map[string]*metrics.Metric)
 	metric := metrics.Metric{
 		ID:    testMetricName,
-		MType: metrics.GaugeMetricTypeName,
+		MType: metrics.MetricTypeGauge,
 		Value: &testMetricValue,
 	}
 	metricsCache[testMetricName] = &metric
@@ -78,7 +78,7 @@ func TestFileStore_SaveMetrics(t *testing.T) {
 	metricsCache2 := make(map[string]*metrics.Metric)
 	metric2 := metrics.Metric{
 		ID:    testMetricName,
-		MType: metrics.GaugeMetricTypeName,
+		MType: metrics.MetricTypeGauge,
 		Value: &testMetricValue2,
 	}
 	metricsCache2[testMetricName] = &metric2

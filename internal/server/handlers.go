@@ -30,6 +30,7 @@ const (
 func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
 	mux.Route("/ping", PingHandler(metricsStore))
 	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
+	mux.Route("/updates/", UpdatesHandler(metricsStore))
 	mux.Route("/value/", GetMetricHandler(metricsStore, signKey))
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
@@ -55,6 +56,12 @@ func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Rou
 	return func(r chi.Router) {
 		r.Post("/", updateHandlerJSON(metricsStore, signKey))
 		r.Post("/{metricType}/{metricName}/{metricData}", updateHandlerPlain(metricsStore))
+	}
+}
+
+func UpdatesHandler(metricsStore repository.Store) func(r chi.Router) {
+	return func(r chi.Router) {
+		r.Post("/", updatesBatchHandler(metricsStore))
 	}
 }
 
@@ -115,7 +122,7 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 		}
 
 		switch {
-		case metric.MType == metrics.GaugeMetricTypeName:
+		case metric.MType == metrics.MetricTypeGauge:
 			if metric.Value == nil {
 				http.Error(
 					w,
@@ -131,7 +138,7 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 					http.StatusBadRequest,
 				)
 			}
-		case metric.MType == metrics.CounterMetricTypeName:
+		case metric.MType == metrics.MetricTypeCounter:
 			if metric.Delta == nil {
 				http.Error(
 					w,
@@ -157,6 +164,30 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 	}
 }
 
+func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer requestCancel()
+
+		var metricsSlice []*metrics.Metric
+		err := json.NewDecoder(r.Body).Decode(&metricsSlice)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
+
+			return
+		}
+
+		err = metricsStore.UpdateMetrics(requestContext, metricsSlice)
+		if err != nil {
+			http.Error(
+				w,
+				fmt.Sprintf("Failed to update metrics: %q", err),
+				http.StatusBadRequest,
+			)
+		}
+	}
+}
+
 func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metricType")
@@ -168,9 +199,9 @@ func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWrite
 
 		var err error
 		switch {
-		case metricType == metrics.GaugeMetricTypeName:
+		case metricType == metrics.MetricTypeGauge:
 			err = updateGauge(requestContext, metricName, metricData, metricsStore)
-		case metricType == metrics.CounterMetricTypeName:
+		case metricType == metrics.MetricTypeCounter:
 			err = updateCounter(requestContext, metricName, metricData, metricsStore)
 		default:
 			http.Error(
@@ -240,7 +271,7 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 		metricType := chi.URLParam(r, "metricType")
 		metricName := chi.URLParam(r, "metricName")
 
-		if metricType != metrics.GaugeMetricTypeName && metricType != metrics.CounterMetricTypeName {
+		if metricType != metrics.MetricTypeGauge && metricType != metrics.MetricTypeCounter {
 			http.Error(
 				w,
 				fmt.Sprintf("Metric type not implemented: %s", metricType),

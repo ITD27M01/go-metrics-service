@@ -87,7 +87,7 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 	}
 
 	switch metricType {
-	case metrics.CounterMetricTypeName:
+	case metrics.MetricTypeCounter:
 		var counter metrics.Counter
 		row := db.connection.QueryRowContext(ctx,
 			"SELECT metric_delta FROM counter WHERE metric_id = $1", metricName)
@@ -100,7 +100,7 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 			return nil, false, err
 		}
 		metric.Delta = &counter
-	case metrics.GaugeMetricTypeName:
+	case metrics.MetricTypeGauge:
 		var gauge metrics.Gauge
 		row := db.connection.QueryRowContext(ctx,
 			"SELECT metric_value FROM gauge WHERE metric_id = $1", metricName)
@@ -118,6 +118,67 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 	}
 
 	return &metric, true, nil
+}
+
+func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Metric) error {
+	tx, err := db.connection.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	stmtInsertGauge, err := tx.Prepare("INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2) ON CONFLICT (metric_id) DO UPDATE SET metric_value = $2")
+	if err != nil {
+		return err
+	}
+
+	stmtSelectCounter, err := tx.Prepare("SELECT metric_delta FROM counter WHERE metric_id = $1")
+	if err != nil {
+		return err
+	}
+
+	stmtInsertCounter, err := tx.Prepare("INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2")
+	if err != nil {
+		return err
+	}
+
+	for _, metric := range metricsBatch {
+		switch {
+		case metric.MType == metrics.MetricTypeGauge:
+			if _, err := stmtInsertGauge.Exec(metric.ID, *(metric.Value)); err != nil {
+				if err := tx.Rollback(); err != nil {
+					log.Printf("unable to rollback transaction: %q", err)
+				}
+				return err
+			}
+		case metric.MType == metrics.MetricTypeCounter:
+			var counter metrics.Counter
+			query := stmtSelectCounter.QueryRow(metric.ID)
+
+			err = query.Scan(&counter)
+			if !errors.Is(err, nil) && !errors.Is(err, sql.ErrNoRows) {
+				if err := tx.Rollback(); err != nil {
+					log.Printf("unable to rollback transaction: %q", err)
+				}
+
+				return err
+			}
+
+			counter += *(metric.Delta)
+
+			if _, err := stmtInsertCounter.Exec(metric.ID, counter); err != nil {
+				if err := tx.Rollback(); err != nil {
+					log.Printf("unable to rollback transaction: %q", err)
+				}
+				return err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, error) {
@@ -139,7 +200,7 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	for counters.Next() {
 		var counter metrics.Counter
 		metric := metrics.Metric{
-			MType: metrics.CounterMetricTypeName,
+			MType: metrics.MetricTypeCounter,
 			Delta: &counter,
 		}
 		err = counters.Scan(&metric.ID, metric.Delta)
@@ -171,7 +232,7 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	for gauges.Next() {
 		var gauge metrics.Gauge
 		metric := metrics.Metric{
-			MType: metrics.GaugeMetricTypeName,
+			MType: metrics.MetricTypeGauge,
 			Value: &gauge,
 		}
 
