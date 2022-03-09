@@ -137,8 +137,12 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	}(counters)
 
 	for counters.Next() {
-		var metric metrics.Metric
-		err = counters.Scan(&metric.ID, metrics.CounterMetricTypeName, metric.Delta)
+		var counter metrics.Counter
+		metric := metrics.Metric{
+			MType: metrics.CounterMetricTypeName,
+			Delta: &counter,
+		}
+		err = counters.Scan(&metric.ID, metric.Delta)
 		if err != nil {
 			return nil, err
 		}
@@ -165,8 +169,13 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	}(gauges)
 
 	for gauges.Next() {
-		var metric metrics.Metric
-		err = gauges.Scan(&metric.ID, metrics.GaugeMetricTypeName, metric.Value)
+		var gauge metrics.Gauge
+		metric := metrics.Metric{
+			MType: metrics.GaugeMetricTypeName,
+			Value: &gauge,
+		}
+
+		err = gauges.Scan(&metric.ID, metric.Value)
 		if err != nil {
 			return nil, err
 		}
