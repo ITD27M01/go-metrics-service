@@ -43,10 +43,20 @@ func NewDBStore(databaseDSN string) (*DBStore, error) {
 }
 
 func (db *DBStore) UpdateCounterMetric(ctx context.Context, metricName string, metricData metrics.Counter) error {
-	_, err := db.connection.ExecContext(ctx,
+	var counter metrics.Counter
+	row := db.connection.QueryRowContext(ctx,
+		"SELECT metric_delta FROM counter WHERE metric_id = $1", metricName)
+
+	err := row.Scan(&counter)
+	if !errors.Is(err, nil) && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+
+	counter += metricData
+	_, err = db.connection.ExecContext(ctx,
 		"INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) "+
 			"ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2",
-		metricName, metricData)
+		metricName, counter)
 
 	return err
 }
