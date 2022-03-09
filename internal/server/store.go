@@ -10,7 +10,7 @@ import (
 
 func runStore(ctx context.Context, config *Config) func() error {
 	switch {
-	case config.DatabaseDSN != "":
+	case config.DatabaseDSN == "1":
 		metricsStore, err := repository.NewDBStore(config.DatabaseDSN)
 		if err != nil {
 			log.Fatalf("Couldn't connect to database: %q", err)
