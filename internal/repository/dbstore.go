@@ -126,20 +126,37 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 		return err
 	}
 
-	stmtInsertGauge, err := tx.Prepare("INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2) ON CONFLICT (metric_id) DO UPDATE SET metric_value = $2")
+	stmtInsertGauge, err := tx.Prepare("INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2) " +
+		"ON CONFLICT (metric_id) DO UPDATE SET metric_value = $2")
 	if err != nil {
 		return err
 	}
+	defer func(stmtInsertGauge *sql.Stmt) {
+		if err := stmtInsertGauge.Close(); err != nil {
+			log.Printf("Failed to close insert statement: %q", err)
+		}
+	}(stmtInsertGauge)
 
 	stmtSelectCounter, err := tx.Prepare("SELECT metric_delta FROM counter WHERE metric_id = $1")
 	if err != nil {
 		return err
 	}
+	defer func(stmtSelectCounter *sql.Stmt) {
+		if err := stmtInsertGauge.Close(); err != nil {
+			log.Printf("Failed to close insert statement: %q", err)
+		}
+	}(stmtSelectCounter)
 
-	stmtInsertCounter, err := tx.Prepare("INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2")
+	stmtInsertCounter, err := tx.Prepare("INSERT INTO counter (metric_id, metric_delta) VALUES ($1, $2) " +
+		"ON CONFLICT (metric_id) DO UPDATE SET metric_delta = $2")
 	if err != nil {
 		return err
 	}
+	defer func(stmtInsertCounter *sql.Stmt) {
+		if err := stmtInsertCounter.Close(); err != nil {
+			log.Printf("Failed to close insert statement: %q", err)
+		}
+	}(stmtInsertCounter)
 
 	for _, metric := range metricsBatch {
 		switch {
@@ -148,6 +165,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 				if err := tx.Rollback(); err != nil {
 					log.Printf("unable to rollback transaction: %q", err)
 				}
+
 				return err
 			}
 		case metric.MType == metrics.MetricTypeCounter:
@@ -169,6 +187,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 				if err := tx.Rollback(); err != nil {
 					log.Printf("unable to rollback transaction: %q", err)
 				}
+
 				return err
 			}
 		}
