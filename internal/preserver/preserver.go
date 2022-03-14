@@ -2,8 +2,9 @@ package preserver
 
 import (
 	"context"
-	"log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
@@ -25,13 +26,13 @@ func NewPreserver(store *repository.FileStore, storeInterval time.Duration, sync
 }
 
 func (p *Preserver) RunPreserver(ctx context.Context) {
-	log.Println("Run preserver for metrics")
+	log.Info().Msg("Run preserver for metrics")
 
 	pollTicker := new(time.Ticker)
 	if p.storeInterval > 0 {
 		pollTicker = time.NewTicker(p.storeInterval)
 
-		log.Printf("Dump metrics every %s", p.storeInterval)
+		log.Info().Msgf("Dump metrics every %s", p.storeInterval)
 	}
 	defer pollTicker.Stop()
 
@@ -47,14 +48,14 @@ func (p *Preserver) RunPreserver(ctx context.Context) {
 		case <-ctx.Done():
 			err = p.store.SaveMetrics()
 			if err != nil {
-				log.Printf("Something went wrong durin metrics preserve %q", err)
+				log.Error().Err(err).Msgf("Something went wrong during metrics preserve")
 			}
 
 			return
 		}
 
 		if err != nil {
-			log.Printf("Something went wrong durin metrics preserve %q", err)
+			log.Error().Err(err).Msgf("Something went wrong during metrics preserve")
 		}
 	}
 }

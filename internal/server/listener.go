@@ -2,16 +2,24 @@ package server
 
 import (
 	"compress/gzip"
-	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog"
+	"github.com/rs/zerolog/log"
 )
 
 func (s *MetricsServer) startListener() {
+	logger := httplog.NewLogger("metrics", httplog.Options{
+		JSON:     true,
+		LogLevel: strings.ToLower(s.Cfg.LogLevel),
+	})
+
 	mux := chi.NewRouter()
-	mux.Use(middleware.Logger)
+
+	mux.Use(httplog.RequestLogger(logger))
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)
@@ -28,12 +36,12 @@ func (s *MetricsServer) startListener() {
 
 	s.listener = httpServer
 
-	log.Println(s.listener.ListenAndServe())
+	log.Info().Msgf("%v", s.listener.ListenAndServe())
 }
 
 func (s *MetricsServer) stopListener() {
 	err := s.listener.Shutdown(s.context)
 	if err != nil {
-		log.Printf("HTTP server ListenAndServe shut down: %q", err)
+		log.Info().Msgf("HTTP server ListenAndServe shut down: %v", err)
 	}
 }

@@ -5,8 +5,10 @@ go 1.17
 require (
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/go-chi/chi/v5 v5.0.7
+	github.com/go-chi/httplog v0.2.1
 	github.com/golang-migrate/migrate/v4 v4.15.1
 	github.com/jackc/pgx/v4 v4.15.0
+	github.com/rs/zerolog v1.18.1-0.20200514152719-663cbb4c8469
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
 )

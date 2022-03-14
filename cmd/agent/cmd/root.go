@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -14,16 +17,27 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{
+	ErrInvalidParam = errors.New("invalid param specified")
+	rootCmd         = &cobra.Command{
 		Use:   "agent",
 		Short: "Simple metrics agent for learning purposes",
-		Long:  `Start the agnet and enjoy a lot of metrics!`,
+		Long:  `Start the agent and enjoy a lot of metrics!`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			re := regexp.MustCompile(`(DEBUG|INFO|WARNING|ERROR)`)
+
+			if !re.MatchString(LogLevel) {
+				return fmt.Errorf("%w: --log-level", ErrInvalidParam)
+			}
+
+			return nil
+		},
 	}
 	ServerAddress  string
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	ServerTimeout  time.Duration
 	SignKey        string
+	LogLevel       string
 )
 
 func init() {
@@ -41,6 +55,9 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
 		"Sign key for metrics")
+
+	rootCmd.Flags().StringVarP(&LogLevel, "log-level", "l", "ERROR",
+		"Set log level: DEBUG|INFO|WARNING|ERROR")
 }
 
 func Execute() error {

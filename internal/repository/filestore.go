@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
@@ -131,10 +132,13 @@ func (fs *FileStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Me
 	return nil
 }
 
-func (fs *FileStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, bool, error) {
+func (fs *FileStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, error) {
 	metric, ok := fs.metricsCache[metricName]
+	if !ok {
+		return nil, ErrMetricNotFound
+	}
 
-	return metric, ok, nil
+	return metric, nil
 }
 
 func (fs *FileStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
@@ -153,11 +157,11 @@ func (fs *FileStore) Ping(_ context.Context) error {
 
 func (fs *FileStore) Close() error {
 	if err := fs.SaveMetrics(); err != nil {
-		log.Printf("Something went wrong durin metrics preserve %q", err)
+		log.Error().Err(err).Msg("Something went wrong durin metrics preserve")
 	}
 
 	if err := fs.file.Sync(); err != nil {
-		log.Printf("Failed to sync metrics: %q", err)
+		log.Error().Err(err).Msg("Failed to sync metrics")
 	}
 
 	return fs.file.Close()
@@ -169,13 +173,13 @@ func (fs *FileStore) LoadMetrics() error {
 
 	jsonDecoder := json.NewDecoder(fs.file)
 
-	log.Printf("Load metrics from %s", fs.file.Name())
+	log.Info().Msgf("Load metrics from %s", fs.file.Name())
 
 	return jsonDecoder.Decode(&(fs.metricsCache))
 }
 
 func (fs *FileStore) SaveMetrics() (err error) {
-	log.Printf("Dump metrics to %s", fs.file.Name())
+	log.Info().Msgf("Dump metrics to %s", fs.file.Name())
 
 	fs.mu.Lock()
 	defer fs.mu.Unlock()

@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -80,7 +81,7 @@ func (db *DBStore) UpdateGaugeMetric(ctx context.Context, metricName string, met
 	return err
 }
 
-func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType string) (*metrics.Metric, bool, error) {
+func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType string) (*metrics.Metric, error) {
 	metric := metrics.Metric{
 		ID:    metricName,
 		MType: metricType,
@@ -95,9 +96,9 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 		err := row.Scan(&counter)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, false, nil
+			return nil, ErrMetricNotFound
 		case !errors.Is(err, nil):
-			return nil, false, err
+			return nil, err
 		}
 		metric.Delta = &counter
 	case metrics.MetricTypeGauge:
@@ -108,16 +109,16 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 		err := row.Scan(&gauge)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, false, nil
+			return nil, ErrMetricNotFound
 		case !errors.Is(err, nil):
-			return nil, false, err
+			return nil, err
 		}
 		metric.Value = &gauge
 	default:
-		return nil, false, nil
+		return nil, ErrMetricNotFound
 	}
 
-	return &metric, true, nil
+	return &metric, nil
 }
 
 func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Metric) error {
@@ -133,7 +134,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 	}
 	defer func(stmtInsertGauge *sql.Stmt) {
 		if err := stmtInsertGauge.Close(); err != nil {
-			log.Printf("Failed to close insert statement: %q", err)
+			log.Error().Err(err).Msg("Failed to close insert statement")
 		}
 	}(stmtInsertGauge)
 
@@ -142,8 +143,8 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 		return err
 	}
 	defer func(stmtSelectCounter *sql.Stmt) {
-		if err := stmtInsertGauge.Close(); err != nil {
-			log.Printf("Failed to close insert statement: %q", err)
+		if err := stmtSelectCounter.Close(); err != nil {
+			log.Error().Err(err).Msgf("Failed to close insert statement")
 		}
 	}(stmtSelectCounter)
 
@@ -154,7 +155,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 	}
 	defer func(stmtInsertCounter *sql.Stmt) {
 		if err := stmtInsertCounter.Close(); err != nil {
-			log.Printf("Failed to close insert statement: %q", err)
+			log.Error().Err(err).Msgf("Failed to close insert statement")
 		}
 	}(stmtInsertCounter)
 
@@ -163,7 +164,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 		case metric.MType == metrics.MetricTypeGauge:
 			if _, err := stmtInsertGauge.Exec(metric.ID, *(metric.Value)); err != nil {
 				if err := tx.Rollback(); err != nil {
-					log.Printf("unable to rollback transaction: %q", err)
+					log.Error().Err(err).Msg("unable to rollback transaction")
 				}
 
 				return err
@@ -175,7 +176,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 			err = query.Scan(&counter)
 			if !errors.Is(err, nil) && !errors.Is(err, sql.ErrNoRows) {
 				if err := tx.Rollback(); err != nil {
-					log.Printf("unable to rollback transaction: %q", err)
+					log.Error().Err(err).Msgf("unable to rollback transaction")
 				}
 
 				return err
@@ -185,7 +186,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 
 			if _, err := stmtInsertCounter.Exec(metric.ID, counter); err != nil {
 				if err := tx.Rollback(); err != nil {
-					log.Printf("unable to rollback transaction: %q", err)
+					log.Error().Err(err).Msgf("unable to rollback transaction")
 				}
 
 				return err
@@ -212,7 +213,7 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-			log.Printf("Couldn't close rows: %q", err)
+			log.Error().Err(err).Msgf("Couldn't close rows")
 		}
 	}(counters)
 
@@ -244,7 +245,7 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-			log.Printf("Couldn't close rows: %q", err)
+			log.Error().Err(err).Msgf("Couldn't close rows")
 		}
 	}(gauges)
 
@@ -276,7 +277,7 @@ func (db *DBStore) Ping(ctx context.Context) error {
 }
 
 func (db *DBStore) Close() error {
-	log.Println("Close database connection")
+	log.Info().Msgf("Close database connection")
 
 	return db.connection.Close()
 }

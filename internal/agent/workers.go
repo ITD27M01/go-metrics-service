@@ -1,11 +1,12 @@
-package workers
+package agent
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
@@ -22,13 +23,13 @@ func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfi
 	reportContext, cancelReporter := context.WithCancel(ctx)
 	go reportWorker.Run(reportContext, metricsStore)
 
-	log.Printf("%v signal received, stopping collector worker", <-getSignalChannel())
+	log.Info().Msgf("%v signal received, stopping collector worker", <-getSignalChannel())
 	cancelCollector()
 
-	log.Println("...stopping reporter worker")
+	log.Info().Msg("...stopping reporter worker")
 	cancelReporter()
 
-	log.Println("All workers are stopped")
+	log.Info().Msg("All workers are stopped")
 }
 
 func getSignalChannel() chan os.Signal {

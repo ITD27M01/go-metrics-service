@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,10 +16,20 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{
+	ErrInvalidParam = errors.New("invalid param specified")
+	rootCmd         = &cobra.Command{
 		Use:   "server",
 		Short: "Simple metrics server for learning purposes",
 		Long:  `Start the server and enjoy a lot of metrics!`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			re := regexp.MustCompile(`(DEBUG|INFO|WARNING|ERROR)`)
+
+			if !re.MatchString(LogLevel) {
+				return fmt.Errorf("%w: --log-level", ErrInvalidParam)
+			}
+
+			return nil
+		},
 	}
 	ServerAddress string
 	Restore       bool
@@ -24,6 +37,7 @@ var (
 	StoreFilePath string
 	SignKey       string
 	DatabaseDSN   string
+	LogLevel      string
 )
 
 func init() {
@@ -44,6 +58,9 @@ func init() {
 
 	rootCmd.Flags().StringVarP(&DatabaseDSN, "databaseDSN", "d", "",
 		"Database DSN for metrics store")
+
+	rootCmd.Flags().StringVarP(&LogLevel, "log-level", "l", "ERROR",
+		"Set log level: DEBUG|INFO|WARNING|ERROR")
 }
 
 func Execute() error {
