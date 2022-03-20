@@ -5,14 +5,14 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
-	"github.com/itd27m01/go-metrics-service/db/migrations"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	_ "github.com/jackc/pgx/v4/stdlib" // init postgresql driver
+
+	"github.com/itd27m01/go-metrics-service/db/migrations"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
 const (

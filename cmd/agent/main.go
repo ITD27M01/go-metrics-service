@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-
 	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/cmd/agent/cmd"
 	"github.com/itd27m01/go-metrics-service/internal/agent"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 )
 
 func main() {
@@ -16,16 +15,7 @@ func main() {
 		log.Fatal().Msgf("Failed to parse command line arguments: %v", err)
 	}
 
-	switch cmd.LogLevel {
-	case "DEBUG":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "INFO":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "WARNING":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "ERROR":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	}
+	logging.LogLevel(cmd.LogLevel)
 
 	pollWorkerConfig := agent.PollerConfig{
 		PollInterval: cmd.PollInterval,
@@ -43,7 +33,7 @@ func main() {
 		SignKey:        cmd.SignKey,
 	}
 	if err := env.Parse(&reportWorkerConfig); err != nil {
-		log.Fatal().Msgf("%v", err)
+		log.Fatal().Err(err).Msg("Failed to parse environment variables")
 	}
 
 	agent.Start(context.Background(), pollWorkerConfig, reportWorkerConfig)

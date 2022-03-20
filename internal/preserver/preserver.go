@@ -4,8 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
@@ -37,6 +36,7 @@ func (p *Preserver) RunPreserver(ctx context.Context) {
 	defer pollTicker.Stop()
 
 	var err error
+	const errMessage = "Something went wrong during metrics preserve"
 	for {
 		select {
 		case <-pollTicker.C:
@@ -48,14 +48,14 @@ func (p *Preserver) RunPreserver(ctx context.Context) {
 		case <-ctx.Done():
 			err = p.store.SaveMetrics()
 			if err != nil {
-				log.Error().Err(err).Msgf("Something went wrong during metrics preserve")
+				log.Error().Err(err).Msgf(errMessage)
 			}
 
 			return
 		}
 
 		if err != nil {
-			log.Error().Err(err).Msgf("Something went wrong during metrics preserve")
+			log.Error().Err(err).Msgf(errMessage)
 		}
 	}
 }

@@ -10,8 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rs/zerolog/log"
-
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
@@ -74,7 +73,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, v.MType, v.ID, stringifyMetricValue)
 		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
-			log.Error().Err(err).Msg("")
+			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
@@ -93,7 +92,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	for _, v := range metricsMap {
 		err := sendMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
-			log.Error().Err(err).Msg("")
+			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
@@ -116,7 +115,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	updateURL := fmt.Sprintf("%s/updates/", serverURL)
 
 	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
-		log.Error().Err(err).Msg("")
+		log.Error().Err(err).Msg("Filed to send metrics")
 	}
 }
 
@@ -124,16 +123,12 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 	log.Info().Msgf("Update metric: %s", metricUpdateURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 	if err != nil {
-		log.Error().Err(err).Msg("")
-
 		return err
 	}
 	req.Header.Set("Content-Type", "text/plain")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("")
-
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -196,16 +191,12 @@ func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Cl
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, &buf)
 	if err != nil {
-		log.Error().Err(err).Msg("")
-
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Err(err).Msg("")
-
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {

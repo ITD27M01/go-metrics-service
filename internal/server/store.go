@@ -3,8 +3,7 @@ package server
 import (
 	"context"
 
-	"github.com/rs/zerolog/log"
-
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )

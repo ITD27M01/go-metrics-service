@@ -3,23 +3,18 @@ package server
 import (
 	"compress/gzip"
 	"net/http"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/httplog"
-	"github.com/rs/zerolog/log"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 )
 
 func (s *MetricsServer) startListener() {
-	logger := httplog.NewLogger("metrics", httplog.Options{
-		JSON:     true,
-		LogLevel: strings.ToLower(s.Cfg.LogLevel),
-	})
-
 	mux := chi.NewRouter()
 
-	mux.Use(httplog.RequestLogger(logger))
+	mux.Use(logging.HTTPRequestLogger(s.Cfg.LogLevel))
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Recoverer)

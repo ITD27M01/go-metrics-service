@@ -7,8 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/rs/zerolog/log"
-
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 )
 
