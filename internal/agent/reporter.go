@@ -1,4 +1,4 @@
-package workers
+package agent
 
 import (
 	"bytes"
@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
@@ -58,7 +58,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 
 	metricsMap, err := mtr.GetMetrics(getContext)
 	if err != nil {
-		log.Printf("Some error occured during metrics get: %q", err)
+		log.Error().Err(err).Msgf("Some error occurred during metrics get")
 	}
 
 	serverURL = strings.TrimSuffix(serverURL, "/")
@@ -73,7 +73,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, v.MType, v.ID, stringifyMetricValue)
 		err := sendMetric(ctx, metricUpdateURL, client)
 		if err != nil {
-			log.Println(err)
+			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
@@ -84,7 +84,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 
 	metricsMap, err := mtr.GetMetrics(getContext)
 	if err != nil {
-		log.Printf("Some error occured during metrics get: %q", err)
+		log.Error().Err(err).Msg("Some error occurred during metrics get")
 	}
 
 	serverURL = strings.TrimSuffix(serverURL, "/")
@@ -92,7 +92,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	for _, v := range metricsMap {
 		err := sendMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
-			log.Println(err)
+			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
@@ -103,7 +103,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 
 	metricsMap, err := mtr.GetMetrics(getContext)
 	if err != nil {
-		log.Printf("Some error ocured during metrics get: %q", err)
+		log.Error().Err(err).Msg("Some error occurred during metrics get")
 	}
 
 	metricsSlice := make([]*metrics.Metric, 0)
@@ -115,24 +115,20 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	updateURL := fmt.Sprintf("%s/updates/", serverURL)
 
 	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("Filed to send metrics")
 	}
 }
 
 func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
-	log.Printf("Update metric: %s", metricUpdateURL)
+	log.Info().Msgf("Update metric: %s", metricUpdateURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 	if err != nil {
-		log.Println(err)
-
 		return err
 	}
 	req.Header.Set("Content-Type", "text/plain")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(err)
-
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -152,7 +148,7 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 
 func sendMetricJSON(ctx context.Context, serverURL string,
 	client *http.Client, metric *metrics.Metric, key string) error {
-	log.Printf("Update metric: %s", metric.ID)
+	log.Info().Msgf("Update metric: %s", metric.ID)
 
 	metric.SetHash(key)
 	body, err := metric.EncodeMetric()
@@ -195,16 +191,12 @@ func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Cl
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, &buf)
 	if err != nil {
-		log.Println(err)
-
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println(err)
-
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -227,6 +219,6 @@ func resetCounters(ctx context.Context, mtr repository.Store) {
 	defer resetCancel()
 
 	if err := mtr.ResetCounterMetric(resetContext, "PollCount"); err != nil {
-		log.Printf("couldn't reset counter: %q", err)
+		log.Error().Err(err).Msg("couldn't reset counter")
 	}
 }

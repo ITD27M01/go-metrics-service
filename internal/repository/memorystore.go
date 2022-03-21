@@ -108,10 +108,13 @@ func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics
 	return nil
 }
 
-func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, bool, error) {
+func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, error) {
 	metric, ok := m.metricsCache[metricName]
+	if !ok {
+		return nil, ErrMetricNotFound
+	}
 
-	return metric, ok, nil
+	return metric, nil
 }
 
 func (m *InMemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {

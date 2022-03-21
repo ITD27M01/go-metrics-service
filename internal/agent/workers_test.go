@@ -1,4 +1,4 @@
-package workers_test
+package agent_test
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/itd27m01/go-metrics-service/internal/agent"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
-	"github.com/itd27m01/go-metrics-service/internal/workers"
 )
 
 const (
@@ -24,9 +24,9 @@ const (
 
 func TestPoolWorker(t *testing.T) {
 	mtr := repository.NewInMemoryStore()
-	workers.UpdateMemStatsMetrics(context.Background(), mtr)
+	agent.UpdateMemStatsMetrics(context.Background(), mtr)
 
-	counterMetric, _, _ := mtr.GetMetric(context.Background(), "PollCount", "")
+	counterMetric, _ := mtr.GetMetric(context.Background(), "PollCount", "")
 	if *counterMetric.Delta != 1 {
 		t.Errorf("Counter wasn't incremented: %d", *counterMetric.Delta)
 	}
@@ -34,7 +34,7 @@ func TestPoolWorker(t *testing.T) {
 
 func TestReportWorker(t *testing.T) {
 	mtr := repository.NewInMemoryStore()
-	workers.UpdateMemStatsMetrics(context.Background(), mtr)
+	agent.UpdateMemStatsMetrics(context.Background(), mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		tokens := strings.FieldsFunc(req.URL.Path, func(c rune) bool {
@@ -76,12 +76,12 @@ func TestReportWorker(t *testing.T) {
 	}))
 	defer server.Close()
 
-	workers.SendReport(context.Background(), mtr, server.URL, server.Client())
+	agent.SendReport(context.Background(), mtr, server.URL, server.Client())
 }
 
 func TestSendReportJSONWorker(t *testing.T) {
 	mtr := repository.NewInMemoryStore()
-	workers.UpdateMemStatsMetrics(context.Background(), mtr)
+	agent.UpdateMemStatsMetrics(context.Background(), mtr)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
@@ -94,13 +94,13 @@ func TestSendReportJSONWorker(t *testing.T) {
 
 		switch {
 		case metric.MType == metrics.MetricTypeGauge:
-			if m, ok, _ := mtr.GetMetric(context.Background(), metric.ID, ""); !ok || *m.Value != *metric.Value {
+			if m, err := mtr.GetMetric(context.Background(), metric.ID, ""); err != nil || *m.Value != *metric.Value {
 				t.Errorf("Metric data mismatch: %f and %f", *m.Value, *metric.Value)
 				http.Error(w, fmt.Sprintf("Metric data mismatch: %f and %f", *m.Value, *metric.Value), http.StatusBadRequest)
 			}
 
 		case metric.MType == metrics.MetricTypeCounter:
-			if m, ok, _ := mtr.GetMetric(context.Background(), metric.ID, ""); !ok || *m.Delta != *metric.Delta {
+			if m, err := mtr.GetMetric(context.Background(), metric.ID, ""); err != nil || *m.Delta != *metric.Delta {
 				t.Errorf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta)
 				http.Error(w, fmt.Sprintf("Metric data mismatch: %d and %d", *m.Delta, *metric.Delta), http.StatusBadRequest)
 			}
@@ -115,5 +115,5 @@ func TestSendReportJSONWorker(t *testing.T) {
 	}))
 	defer server.Close()
 
-	workers.SendReportJSON(context.Background(), mtr, server.URL, server.Client(), "")
+	agent.SendReportJSON(context.Background(), mtr, server.URL, server.Client(), "")
 }

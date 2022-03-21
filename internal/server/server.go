@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
@@ -19,6 +19,7 @@ type Config struct {
 	Restore       bool          `env:"RESTORE"`
 	SignKey       string        `env:"KEY"`
 	DatabaseDSN   string        `env:"DATABASE_DSN"`
+	LogLevel      string        `env:"LogLevel"`
 
 	MetricsStore repository.Store
 }
@@ -38,13 +39,13 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	closeStore := runStore(storeContext, s.Cfg)
 
 	go s.startListener()
-	log.Printf("Start listener on %s", s.Cfg.ServerAddress)
+	log.Info().Msgf("Start listener on %s", s.Cfg.ServerAddress)
 
-	log.Printf("%s signal received, graceful shutdown the server", <-getSignalChannel())
+	log.Info().Msgf("%s signal received, graceful shutdown the server", <-getSignalChannel())
 	s.stopListener()
 
 	if err := closeStore(); err != nil {
-		log.Printf("Some error ocured while store close: %q", err)
+		log.Error().Err(err).Msg("Some error occurred while store close")
 	}
 	storeCancel()
 

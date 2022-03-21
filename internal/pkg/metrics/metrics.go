@@ -7,7 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -61,7 +62,7 @@ func (m *Metric) getHash(key string) string {
 	case MetricTypeCounter:
 		metricString = fmt.Sprintf("%s:%s:%d", m.ID, MetricTypeCounter, *(m.Delta))
 	default:
-		log.Printf("unsupported metric type: %s", m.MType)
+		log.Error().Msgf("unsupported metric type: %s", m.MType)
 	}
 
 	mac := hmac.New(sha256.New, []byte(key))

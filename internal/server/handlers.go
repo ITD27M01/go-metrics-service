@@ -5,14 +5,16 @@ import (
 	"database/sql/driver"
 	_ "embed" // Use templates from file to render pages
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
@@ -229,22 +231,21 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
-		metricData, ok, err := metricsStore.GetMetric(requestContext, metric.ID, metric.MType)
-		if err != nil {
-			http.Error(
-				w,
-				fmt.Sprintf("Filed to get metric: %q", err),
-				http.StatusInternalServerError,
-			)
-
-			return
-		}
-
-		if !ok {
+		metricData, err := metricsStore.GetMetric(requestContext, metric.ID, metric.MType)
+		switch {
+		case errors.Is(err, repository.ErrMetricNotFound):
 			http.Error(
 				w,
 				fmt.Sprintf("Metric not found: %s", metric.ID),
 				http.StatusNotFound,
+			)
+
+			return
+		case !errors.Is(err, nil):
+			http.Error(
+				w,
+				fmt.Sprintf("Filed to get metric: %q", err),
+				http.StatusInternalServerError,
 			)
 
 			return
@@ -261,7 +262,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 		w.Header().Set("Content-Type", "application/json")
 		_, err = w.Write(encodedMetric.Bytes())
 		if err != nil {
-			log.Printf("Cannot send request: %q", err)
+			log.Error().Err(err).Msg("Cannot send request")
 		}
 	}
 }
@@ -277,27 +278,30 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 				fmt.Sprintf("Metric type not implemented: %s", metricType),
 				http.StatusNotImplemented,
 			)
+
 			return
 		}
 
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
-		metricData, ok, err := metricsStore.GetMetric(requestContext, metricName, metricType)
-		if err != nil {
-			http.Error(
-				w,
-				fmt.Sprintf("Filed to get metric: %q", err),
-				http.StatusInternalServerError,
-			)
-			return
-		}
-		if !ok {
+		metricData, err := metricsStore.GetMetric(requestContext, metricName, metricType)
+		switch {
+		case errors.Is(err, repository.ErrMetricNotFound):
 			http.Error(
 				w,
 				fmt.Sprintf("Metric not found: %s", metricName),
 				http.StatusNotFound,
 			)
+
+			return
+		case !errors.Is(err, nil):
+			http.Error(
+				w,
+				fmt.Sprintf("Filed to get metric: %q", err),
+				http.StatusInternalServerError,
+			)
+
 			return
 		}
 

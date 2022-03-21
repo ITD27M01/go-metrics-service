@@ -2,26 +2,29 @@ package main
 
 import (
 	"context"
-	"log"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/itd27m01/go-metrics-service/cmd/agent/cmd"
-	"github.com/itd27m01/go-metrics-service/internal/workers"
+	"github.com/itd27m01/go-metrics-service/internal/agent"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging"
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 )
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		log.Fatalf("Failed to parse command line arguments: %q", err)
+		log.Fatal().Msgf("Failed to parse command line arguments: %v", err)
 	}
 
-	pollWorkerConfig := workers.PollerConfig{
+	logging.LogLevel(cmd.LogLevel)
+
+	pollWorkerConfig := agent.PollerConfig{
 		PollInterval: cmd.PollInterval,
 	}
 	if err := env.Parse(&pollWorkerConfig); err != nil {
-		log.Fatal(err)
+		log.Fatal().Msgf("%v", err)
 	}
 
-	reportWorkerConfig := workers.ReporterConfig{
+	reportWorkerConfig := agent.ReporterConfig{
 		ServerScheme:   "http",
 		ServerAddress:  cmd.ServerAddress,
 		ServerPath:     "/update/",
@@ -30,8 +33,8 @@ func main() {
 		SignKey:        cmd.SignKey,
 	}
 	if err := env.Parse(&reportWorkerConfig); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to parse environment variables")
 	}
 
-	workers.Start(context.Background(), pollWorkerConfig, reportWorkerConfig)
+	agent.Start(context.Background(), pollWorkerConfig, reportWorkerConfig)
 }
