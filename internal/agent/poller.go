@@ -2,17 +2,23 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
 
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+
+	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 )
 
 const (
 	counterIncrement = 1
-	storeTimeout     = 1 * time.Second
+	pollTimeout      = 1 * time.Second
+	sampleTime       = 1 * time.Second
 )
 
 type PollerConfig struct {
@@ -23,11 +29,11 @@ type PollerWorker struct {
 	Cfg PollerConfig
 }
 
-func (pw *PollerWorker) Run(ctx context.Context, mtr repository.Store) {
+func (pw *PollerWorker) RunMemStats(ctx context.Context, mtr repository.Store) {
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
 
-	storeContext, storeCancel := context.WithTimeout(ctx, storeTimeout)
+	storeContext, storeCancel := context.WithTimeout(ctx, pollTimeout)
 	defer storeCancel()
 
 	for {
@@ -36,6 +42,23 @@ func (pw *PollerWorker) Run(ctx context.Context, mtr repository.Store) {
 			return
 		case <-pollTicker.C:
 			UpdateMemStatsMetrics(storeContext, mtr)
+		}
+	}
+}
+
+func (pw *PollerWorker) RunPsStats(ctx context.Context, mtr repository.Store) {
+	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
+	defer pollTicker.Stop()
+
+	storeContext, storeCancel := context.WithCancel(ctx)
+	defer storeCancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-pollTicker.C:
+			UpdatePsMetrics(storeContext, mtr)
 		}
 	}
 }
@@ -77,4 +100,34 @@ func UpdateMemStatsMetrics(ctx context.Context, mtr repository.Store) {
 	_ = mtr.UpdateGaugeMetric(ctx, "TotalAlloc", metrics.Gauge(memStats.TotalAlloc))
 
 	_ = mtr.UpdateGaugeMetric(ctx, "RandomValue", metrics.Gauge(rand.Int63()))
+}
+
+func UpdatePsMetrics(ctx context.Context, mtr repository.Store) {
+	updateMemPsMetrics(ctx, mtr)
+	updateCPUPsMetrics(ctx, mtr)
+}
+
+func updateMemPsMetrics(ctx context.Context, mtr repository.Store) {
+	vm, err := mem.VirtualMemoryWithContext(ctx)
+	if err != nil {
+		log.Error().Msgf("Couldn't get virtual memory stats: %v", err)
+
+		return
+	}
+
+	_ = mtr.UpdateGaugeMetric(ctx, "TotalMemory", metrics.Gauge(vm.Total))
+	_ = mtr.UpdateGaugeMetric(ctx, "FreeMemory", metrics.Gauge(vm.Free))
+}
+
+func updateCPUPsMetrics(ctx context.Context, mtr repository.Store) {
+	cpuUtilization, err := cpu.PercentWithContext(ctx, sampleTime, true)
+	if err != nil {
+		log.Error().Msgf("Couldn't get cpu utilization: %v", err)
+
+		return
+	}
+
+	for i, v := range cpuUtilization {
+		_ = mtr.UpdateGaugeMetric(ctx, fmt.Sprintf("CPUutilization%d", i+1), metrics.Gauge(v))
+	}
 }

@@ -53,7 +53,7 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 }
 
 func SendReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
-	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
 	metricsMap, err := mtr.GetMetrics(getContext)
@@ -79,7 +79,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 }
 
 func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
-	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
 	metricsMap, err := mtr.GetMetrics(getContext)
@@ -98,7 +98,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 }
 
 func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
-	getContext, getCancel := context.WithTimeout(ctx, storeTimeout)
+	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
 	metricsMap, err := mtr.GetMetrics(getContext)
@@ -215,7 +215,7 @@ func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Cl
 }
 
 func resetCounters(ctx context.Context, mtr repository.Store) {
-	resetContext, resetCancel := context.WithTimeout(ctx, storeTimeout)
+	resetContext, resetCancel := context.WithTimeout(ctx, pollTimeout)
 	defer resetCancel()
 
 	if err := mtr.ResetCounterMetric(resetContext, "PollCount"); err != nil {
