@@ -28,6 +28,8 @@ clean:
 update:
 	$(MAKE) go-update
 
+test: go-test go-statictest go-vet
+
 compile: go-clean go-get-agent go-get-server build-agent build-server
 
 go-update: go-clean-cache go-tidy go-migrate
@@ -65,10 +67,19 @@ go-test:
 	@echo "  >  Test project..."
 	@go test ./...
 
+go-container:
+	@docker build -q -t go-metrics-server .
+	@docker run --rm --name go-metrics-server go-metrics-server
+
+go-statictest: go-container
+	@echo " > Static test project..."
+	@docker logs go-metrics-server
+
 go-vet:
 	@echo "  >  Vet project..."
 	@go vet ./...
 
 go-migrate:
 	@echo "  >  Update migrations..."
+	@go get -u github.com/go-bindata/go-bindata/...
 	@cd internal/server/db/migrations; go-bindata -pkg migrations .
