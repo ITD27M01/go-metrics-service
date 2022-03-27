@@ -71,4 +71,4 @@ go-vet:
 
 go-migrate:
 	@echo "  >  Update migrations..."
-	@cd db/migrations; go-bindata -pkg migrations .
+	@cd internal/server/db/migrations; go-bindata -pkg migrations .
