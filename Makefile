@@ -30,7 +30,7 @@ update:
 
 compile: go-clean go-get-agent go-get-server build-agent build-server
 
-go-update: go-clean-cache go-tidy
+go-update: go-clean-cache go-tidy go-migrate
 
 go-clean:
 	@echo "  >  Cleaning build cache"
@@ -68,3 +68,7 @@ go-test:
 go-vet:
 	@echo "  >  Vet project..."
 	@go vet ./...
+
+go-migrate:
+	@echo "  >  Update migrations..."
+	@cd db/migrations; go-bindata -pkg migrations .
