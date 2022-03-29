@@ -14,8 +14,9 @@ func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfi
 	metricsStore := repository.NewInMemoryStore()
 
 	pollWorker := PollerWorker{Cfg: pollWorkerConfig}
-	pollContext, cancelCollector := context.WithCancel(ctx)
-	go pollWorker.Run(pollContext, metricsStore)
+	pollContext, cancelPoller := context.WithCancel(ctx)
+	go pollWorker.RunMemStats(pollContext, metricsStore)
+	go pollWorker.RunPsStats(pollContext, metricsStore)
 
 	reportWorker := ReportWorker{Cfg: reportWorkerConfig}
 
@@ -23,7 +24,7 @@ func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfi
 	go reportWorker.Run(reportContext, metricsStore)
 
 	log.Info().Msgf("%v signal received, stopping collector worker", <-getSignalChannel())
-	cancelCollector()
+	cancelPoller()
 
 	log.Info().Msg("...stopping reporter worker")
 	cancelReporter()

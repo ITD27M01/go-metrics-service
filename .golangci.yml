@@ -1,4 +1,4 @@
 ---
 run:
   skip-dirs:
-    - db/migrations
+    - internal/server/db/migrations

@@ -10,9 +10,9 @@ import (
 	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	_ "github.com/jackc/pgx/v4/stdlib" // init postgresql driver
 
-	"github.com/itd27m01/go-metrics-service/db/migrations"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/server/db/migrations"
 )
 
 const (

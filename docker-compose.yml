@@ -11,3 +11,19 @@ services:
       POSTGRES_PASSWORD: dbpass
     ports:
       - "5432:5432"
+  server:
+    build: ./
+    restart: always
+    entrypoint: ["/app/bin/server", "--log-level", "DEBUG"]
+    environment:
+      DATABASE_DSN: "postgres://dbuser:dbpass@postgres:5432/metrics"
+      KEY: "test"
+      ADDRESS: "0.0.0.0:8080"
+    ports:
+      - "8080:8080"
+  agent:
+    build: ./
+    entrypoint: ["/app/bin/agent", "--log-level", "DEBUG"]
+    environment:
+      ADDRESS: "server:8080"
+      KEY: "test"
