@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 )
 
 var ErrMetricTypeMismatch = errors.New("possible metric type mismatch")

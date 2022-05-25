@@ -14,9 +14,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 //go:embed assets/index.gohtml
@@ -113,11 +113,14 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 		err := json.NewDecoder(r.Body).Decode(&metric)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
+			log.Error().Err(err).Msgf("Cannot decode provided data: %q", err)
 
 			return
 		}
 
 		if !metric.IsHashValid(signKey) {
+			log.Error().Msg("Wrong hash provided for metric")
+
 			http.Error(w, "Wrong hash provided for metric", http.StatusBadRequest)
 
 			return
@@ -175,6 +178,7 @@ func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWrit
 		err := json.NewDecoder(r.Body).Decode(&metricsSlice)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
+			log.Error().Err(err).Msgf("Cannot decode provided data: %q", err)
 
 			return
 		}

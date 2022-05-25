@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 type Config struct {
@@ -19,7 +19,7 @@ type Config struct {
 	Restore       bool          `env:"RESTORE"`
 	SignKey       string        `env:"KEY"`
 	DatabaseDSN   string        `env:"DATABASE_DSN"`
-	LogLevel      string        `env:"LogLevel"`
+	LogLevel      string        `env:"LOG_LEVEL"`
 
 	MetricsStore repository.Store
 }

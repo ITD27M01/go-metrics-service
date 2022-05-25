@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/rs/zerolog/log"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 const (

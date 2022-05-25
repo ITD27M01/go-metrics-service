@@ -24,6 +24,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      DATABASE_DSN: "postgresql://postgres:postgres@postgres/praktikum?sslmode=disable"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -41,6 +44,11 @@ jobs:
           chmod -R +x $GITHUB_WORKSPACE/.tools
           mv $GITHUB_WORKSPACE/.tools/devopstest /usr/local/bin/devopstest
           mv $GITHUB_WORKSPACE/.tools/random /usr/local/bin/random
+
+      - name: Run migrations
+        run: |
+          (go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest)
+          (migrate -path db/migrations -database $DATABASE_DSN up)
 
       - name: Build agent binary
         run: |
@@ -210,7 +218,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -file-storage-path=$TEMP_FILE
 
 # VII. Задание к седьмому инкременту.
@@ -237,7 +245,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -file-storage-path=$TEMP_FILE
 
 # VIII. Задание к восьмому инкременту.
@@ -255,7 +263,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -file-storage-path=$TEMP_FILE
 
 # IX. Задание к девятому инкременту.
@@ -302,7 +310,7 @@ jobs:
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
             -file-storage-path=$TEMP_FILE \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -key="${TEMP_FILE}"
 
 # X. Задание к десятому инкременту.
@@ -324,7 +332,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -key="${TEMP_FILE}"
 
 # XI. Задание к одиннадцатому инкременту.
@@ -344,7 +352,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -key="${TEMP_FILE}"
 
 # XII. Задание к двенадцатому инкременту.
@@ -369,7 +377,7 @@ jobs:
             -agent-binary-path=cmd/agent/agent \
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -key="${TEMP_FILE}"
 
 
@@ -407,5 +415,5 @@ jobs:
             -binary-path=cmd/server/server \
             -server-port=$SERVER_PORT \
             -file-storage-path=$TEMP_FILE \
-            -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
+            -database-dsn=$DATABASE_DSN \
             -key="${TEMP_FILE}"

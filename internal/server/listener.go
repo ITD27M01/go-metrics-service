@@ -7,8 +7,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
+	"github.com/itd27m01/go-metrics-service/pkg/logging"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 func (s *MetricsServer) startListener() {

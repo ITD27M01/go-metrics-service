@@ -5,19 +5,14 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
-	bindata "github.com/golang-migrate/migrate/v4/source/go_bindata"
 	_ "github.com/jackc/pgx/v4/stdlib" // init postgresql driver
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
-	"github.com/itd27m01/go-metrics-service/internal/server/db/migrations"
+	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 const (
-	psqlDriverName      = "pgx"
-	migrationSourceName = "go-bindata"
+	psqlDriverName = "pgx"
 )
 
 type DBStore struct {
@@ -34,10 +29,6 @@ func NewDBStore(databaseDSN string) (*DBStore, error) {
 
 	db = DBStore{
 		connection: conn,
-	}
-
-	if err := db.migrate(); err != nil {
-		return nil, err
 	}
 
 	return &db, nil
@@ -280,29 +271,4 @@ func (db *DBStore) Close() error {
 	log.Info().Msgf("Close database connection")
 
 	return db.connection.Close()
-}
-
-func (db *DBStore) migrate() error {
-	data := bindata.Resource(migrations.AssetNames(), migrations.Asset)
-
-	sourceDriver, err := bindata.WithInstance(data)
-	if err != nil {
-		return err
-	}
-
-	dbDriver, err := postgres.WithInstance(db.connection, &postgres.Config{})
-	if err != nil {
-		return err
-	}
-
-	migration, err := migrate.NewWithInstance(migrationSourceName, sourceDriver, psqlDriverName, dbDriver)
-	if err != nil {
-		return err
-	}
-
-	if err := migration.Up(); !errors.Is(err, migrate.ErrNoChange) {
-		return err
-	}
-
-	return nil
 }

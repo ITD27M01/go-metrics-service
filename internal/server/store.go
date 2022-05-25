@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
 	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 func runStore(ctx context.Context, config *Config) func() error {

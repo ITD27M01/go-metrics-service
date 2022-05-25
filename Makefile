@@ -81,5 +81,4 @@ go-vet:
 
 go-migrate:
 	@echo "  >  Update migrations..."
-	@go get -u github.com/go-bindata/go-bindata/...
-	@cd internal/server/db/migrations; go-bindata -pkg migrations .
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
