@@ -1,4 +1,0 @@
----
-run:
-  skip-dirs:
-    - internal/server/db/migrations

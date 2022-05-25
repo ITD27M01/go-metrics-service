@@ -27,3 +27,75 @@ services:
     environment:
       ADDRESS: "server:8080"
       KEY: "test"
+  tests:
+    build: ./
+    image: go-metrics-service
+  tests1:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration1$$"
+      - "-agent-binary-path=/app/bin/agent"
+  tests2-3:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration(2|3)[b]*$$"
+      - "-source-path=."
+      - "-binary-path=/app/bin/server"
+  tests4:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration4$$"
+      - "-source-path=."
+      - "-binary-path=/app/bin/server"
+      - "-agent-binary-path=/app/bin/agent"
+  tests5:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration5$$"
+      - "-source-path=."
+      - "-binary-path=/app/bin/server"
+      - "-agent-binary-path=/app/bin/agent"
+      - "-server-port=8080"
+    environment:
+      ADDRESS: "localhost:8080"
+      LOG_LEVEL: "ERROR"
+  tests6-8:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration(6|7|8)$$"
+      - "-source-path=."
+      - "-binary-path=/app/bin/server"
+      - "-agent-binary-path=/app/bin/agent"
+      - "-server-port=8080"
+      - "-file-storage-path=/tmp/metrics.json"
+      - "-database-dsn=postgres://dbuser:dbpass@postgres:5432/metrics"
+    environment:
+      ADDRESS: "localhost:8080"
+      LOG_LEVEL: "ERROR"
+  tests9-14:
+    image: go-metrics-service
+    entrypoint:
+      - "/usr/bin/devopstest"
+      - "-test.v"
+      - "-test.run=^TestIteration(9|10|11|12|13|14)$$"
+      - "-source-path=."
+      - "-binary-path=/app/bin/server"
+      - "-agent-binary-path=/app/bin/agent"
+      - "-server-port=8080"
+      - "-file-storage-path=/tmp/metrics.json"
+      - "-database-dsn=postgres://dbuser:dbpass@postgres:5432/metrics"
+      - "-key=test"
+    environment:
+      ADDRESS: "localhost:8080"
+      KEY: "test"
+      LOG_LEVEL: "ERROR"

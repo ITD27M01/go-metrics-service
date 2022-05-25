@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/logging/log"
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 type ReporterConfig struct {

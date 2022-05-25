@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/itd27m01/go-metrics-service/internal/pkg/metrics"
+	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 )
 
 type InMemoryStore struct {
