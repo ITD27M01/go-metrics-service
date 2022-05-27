@@ -22,6 +22,7 @@ func (s *MetricsServer) startListener() {
 	compressor := middleware.NewCompressor(gzip.BestCompression)
 	mux.Use(compressor.Handler)
 
+	mux.Mount("/debug", middleware.Profiler())
 	RegisterHandlers(mux, s.Cfg.MetricsStore, s.Cfg.SignKey)
 
 	httpServer := &http.Server{
