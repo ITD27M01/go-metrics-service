@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"

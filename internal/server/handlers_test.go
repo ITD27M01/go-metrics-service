@@ -247,6 +247,21 @@ func TestRouter(t *testing.T) {
 	}
 }
 
+func BenchmarkRouter(b *testing.B) {
+	mux := chi.NewRouter()
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	benchJSONRequest(b, ts, testsJSON[0])
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		benchJSONRequest(b, ts, testsJSON[1])
+	}
+}
+
 func testJSONRequest(t *testing.T, ts *httptest.Server, testData testJSON) {
 	body, _ := testData.metric.EncodeMetric()
 	req, err := http.NewRequest(testData.method, ts.URL+testData.url, body)
@@ -284,5 +299,29 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 		respBody, err := ioutil.ReadAll(resp.Body)
 		assert.Equal(t, testData.want.data, string(respBody))
 		require.NoError(t, err)
+	}
+}
+
+func benchJSONRequest(b *testing.B, ts *httptest.Server, testData testJSON) {
+	body, _ := testData.metric.EncodeMetric()
+	req, err := http.NewRequest(testData.method, ts.URL+testData.url, body)
+	require.NoError(b, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.Equal(b, testData.want.code, resp.StatusCode)
+	require.NoError(b, err)
+
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if string(respBody) != "" {
+		assert.JSONEq(b, testData.want.data, string(respBody))
+	} else {
+		assert.Equal(b, testData.want.data, string(respBody))
+	}
+
+	require.NoError(b, err)
+
+	err = resp.Body.Close()
+	if err != nil {
+		return
 	}
 }
