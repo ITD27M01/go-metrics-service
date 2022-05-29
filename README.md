@@ -1,4 +1,5 @@
 # go-musthave-devops-tpl
+![Coverage](https://img.shields.io/badge/Coverage-28.9%25-red)
 
 Шаблон репозитория для практического трека «Go в DevOps».
 
