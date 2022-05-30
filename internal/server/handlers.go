@@ -28,6 +28,7 @@ const (
 	counterBitSize = 64
 )
 
+// RegisterHandlers registers metrics server handlers
 func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
 	mux.Route("/ping", PingHandler(metricsStore))
 	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
@@ -36,6 +37,7 @@ func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey strin
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
 
+// PingHandler is a special handler which pings the database
 func PingHandler(metricsStore driver.Pinger) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +55,7 @@ func PingHandler(metricsStore driver.Pinger) func(r chi.Router) {
 	}
 }
 
+// UpdateHandler is used to update metrics
 func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", updateHandlerJSON(metricsStore, signKey))
@@ -60,12 +63,14 @@ func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Rou
 	}
 }
 
+// UpdatesHandler is used to update the batch of metrics
 func UpdatesHandler(metricsStore repository.Store) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", updatesBatchHandler(metricsStore))
 	}
 }
 
+// GetMetricHandler is a handler for retrieving a metric
 func GetMetricHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/", retrieveHandlerJSON(metricsStore, signKey))
@@ -73,6 +78,7 @@ func GetMetricHandler(metricsStore repository.Store, signKey string) func(r chi.
 	}
 }
 
+// GetMetricsHandler is a handler for retrieving a beauty html of metrics
 func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 	var tmpl = template.Must(template.New("index.html").Parse(metricsTemplateFile))
 
@@ -103,6 +109,7 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 	}
 }
 
+// updateHandlerJSON does actual work to update the metric
 func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
@@ -168,6 +175,7 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 	}
 }
 
+// updatesBatchHandler does actual work to update batch of the metrics
 func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
@@ -193,6 +201,7 @@ func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWrit
 	}
 }
 
+// updateHandlerPlain does actual work to update a metric from url params
 func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metricType")
@@ -221,6 +230,7 @@ func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWrite
 	}
 }
 
+// retrieveHandlerJSON does actual work to get JSON metric
 func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var metric metrics.Metric
@@ -270,6 +280,7 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 	}
 }
 
+// getHandlerPlain does actual work to get metric by url params
 func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricType := chi.URLParam(r, "metricType")
@@ -319,6 +330,8 @@ func getHandlerPlain(metricsStore repository.Store) func(w http.ResponseWriter, 
 	}
 }
 
+// updateGauge updates gauge metric
+// BUG(igortiunov): it brakes single responsibility
 func updateGauge(ctx context.Context, metricName string, metricData string, metricsStore repository.Store) error {
 	parsedData, err := strconv.ParseFloat(metricData, gaugeBitSize)
 	if err == nil {
@@ -328,6 +341,8 @@ func updateGauge(ctx context.Context, metricName string, metricData string, metr
 	return err
 }
 
+// updateCounter updates counter metric
+// BUG(igortiunov): it brakes single responsibility
 func updateCounter(ctx context.Context, metricName string, metricData string, metricsStore repository.Store) error {
 	parsedData, err := strconv.ParseInt(metricData, counterBase, counterBitSize)
 	if err == nil {

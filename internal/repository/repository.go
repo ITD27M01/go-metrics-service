@@ -7,9 +7,13 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 )
 
-var ErrMetricTypeMismatch = errors.New("possible metric type mismatch")
-var ErrMetricNotFound = errors.New("metric not found in repository")
+// Errors for store interface type
+var (
+	ErrMetricTypeMismatch = errors.New("possible metric type mismatch")
+	ErrMetricNotFound     = errors.New("metric not found in repository")
+)
 
+// Store defines interface type for metrics store
 type Store interface {
 	UpdateCounterMetric(ctx context.Context, name string, value metrics.Counter) error
 	ResetCounterMetric(ctx context.Context, name string) error

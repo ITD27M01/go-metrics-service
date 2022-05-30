@@ -11,6 +11,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+// startListener starts http listener for metrics server
 func (s *MetricsServer) startListener() {
 	mux := chi.NewRouter()
 
@@ -35,6 +36,7 @@ func (s *MetricsServer) startListener() {
 	log.Info().Msgf("%v", s.listener.ListenAndServe())
 }
 
+// stopListener stops http listener of metrics server
 func (s *MetricsServer) stopListener() {
 	err := s.listener.Shutdown(s.context)
 	if err != nil {
