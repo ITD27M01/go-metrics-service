@@ -21,7 +21,11 @@ func ExamplePingHandler() {
 	defer ts.Close()
 
 	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/ping", nil)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
 
 	fmt.Println(resp.Status)
 
@@ -43,14 +47,22 @@ func ExampleUpdateHandler() {
 
 	body, _ := metric.EncodeMetric()
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/update/", body)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
 
 	fmt.Printf("By JSON: %s", resp.Status)
 
 	metricURL := ts.URL + "/update/gauge/" + fmt.Sprintf("%s/%s", metric.ID, metric.String())
 
 	req, _ = http.NewRequest(http.MethodPost, metricURL, nil)
-	resp, _ = http.DefaultClient.Do(req)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
 
 	fmt.Printf(", By url params: %s", resp.Status)
 
@@ -76,7 +88,12 @@ func ExampleUpdatesHandler() {
 	_ = jsonEncoder.Encode(metricsSlice)
 
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/updates/", &body)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	defer resp.Body.Close()
 
 	fmt.Println(resp.Status)
 
@@ -98,12 +115,22 @@ func ExampleGetMetricHandler() {
 
 	body, _ := metric.EncodeMetric()
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/update/", body)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
+
 	fmt.Println(resp.Status)
 
 	body, _ = metric.EncodeMetric()
 	req, _ = http.NewRequest(http.MethodPost, ts.URL+"/value/", body)
-	resp, _ = http.DefaultClient.Do(req)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	defer resp.Body.Close()
+
 	fmt.Println(resp.Status)
 
 	// Output: 200 OK
