@@ -236,3 +236,47 @@ func TestInMemoryStore_GetMetric(t *testing.T) {
 		})
 	}
 }
+
+func TestInMemoryStore_GetMetrics(t *testing.T) {
+	metricsCache := make(map[string]*metrics.Metric)
+
+	type fields struct {
+		metricsCache map[string]*metrics.Metric
+	}
+	type args struct {
+		in0 context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string]*metrics.Metric
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "TestGetMetrics",
+			fields: fields{
+				metricsCache: metricsCache,
+			},
+			args: args{
+				in0: context.Background(),
+			},
+			want: metricsCache,
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return false
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &InMemoryStore{
+				metricsCache: tt.fields.metricsCache,
+			}
+			got, err := m.GetMetrics(tt.args.in0)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetMetrics(%v)", tt.args.in0)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetMetrics(%v)", tt.args.in0)
+		})
+	}
+}
