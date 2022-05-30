@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
@@ -17,7 +16,6 @@ func TestInMemoryStore_UpdateCounterMetric(t *testing.T) {
 
 	type fields struct {
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -49,7 +47,6 @@ func TestInMemoryStore_UpdateCounterMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &InMemoryStore{
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			tt.wantErr(t, m.UpdateCounterMetric(tt.args.in0, tt.args.metricName, tt.args.metricData), fmt.Sprintf("UpdateCounterMetric(%v, %v, %v)", tt.args.in0, tt.args.metricName, tt.args.metricData))
 		})
@@ -62,7 +59,6 @@ func TestInMemoryStore_ResetCounterMetric(t *testing.T) {
 
 	type fields struct {
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -92,7 +88,6 @@ func TestInMemoryStore_ResetCounterMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &InMemoryStore{
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			tt.wantErr(t, m.ResetCounterMetric(tt.args.in0, tt.args.metricName), fmt.Sprintf("ResetCounterMetric(%v, %v)", tt.args.in0, tt.args.metricName))
 		})
@@ -106,7 +101,6 @@ func TestInMemoryStore_UpdateGaugeMetric(t *testing.T) {
 
 	type fields struct {
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -138,7 +132,6 @@ func TestInMemoryStore_UpdateGaugeMetric(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &InMemoryStore{
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			tt.wantErr(t, m.UpdateGaugeMetric(tt.args.in0, tt.args.metricName, tt.args.metricData), fmt.Sprintf("UpdateGaugeMetric(%v, %v, %v)", tt.args.in0, tt.args.metricName, tt.args.metricData))
 		})
@@ -152,7 +145,6 @@ func TestInMemoryStore_UpdateMetrics(t *testing.T) {
 
 	type fields struct {
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0          context.Context
@@ -187,7 +179,6 @@ func TestInMemoryStore_UpdateMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &InMemoryStore{
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			tt.wantErr(t, m.UpdateMetrics(tt.args.in0, tt.args.metricsBatch), fmt.Sprintf("UpdateMetrics(%v, %v)", tt.args.in0, tt.args.metricsBatch))
 		})

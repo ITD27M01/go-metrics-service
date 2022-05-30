@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
@@ -145,7 +144,6 @@ func TestFileStore_UpdateCounterMetric(t *testing.T) {
 		file         *os.File
 		syncChannel  chan struct{}
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -178,7 +176,6 @@ func TestFileStore_UpdateCounterMetric(t *testing.T) {
 				file:         tt.fields.file,
 				syncChannel:  tt.fields.syncChannel,
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			if err := fs.UpdateCounterMetric(tt.args.in0, tt.args.metricName, tt.args.metricData); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateCounterMetric() error = %v, wantErr %v", err, tt.wantErr)
@@ -203,7 +200,6 @@ func TestFileStore_ResetCounterMetric(t *testing.T) {
 		file         *os.File
 		syncChannel  chan struct{}
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -234,7 +230,6 @@ func TestFileStore_ResetCounterMetric(t *testing.T) {
 				file:         tt.fields.file,
 				syncChannel:  tt.fields.syncChannel,
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			if err := fs.ResetCounterMetric(tt.args.in0, tt.args.metricName); (err != nil) != tt.wantErr {
 				t.Errorf("ResetCounterMetric() error = %v, wantErr %v", err, tt.wantErr)
@@ -260,7 +255,6 @@ func TestFileStore_UpdateGaugeMetric(t *testing.T) {
 		file         *os.File
 		syncChannel  chan struct{}
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -293,7 +287,6 @@ func TestFileStore_UpdateGaugeMetric(t *testing.T) {
 				file:         tt.fields.file,
 				syncChannel:  tt.fields.syncChannel,
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			if err := fs.UpdateGaugeMetric(tt.args.in0, tt.args.metricName, tt.args.metricData); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateGaugeMetric() error = %v, wantErr %v", err, tt.wantErr)
@@ -319,7 +312,6 @@ func TestFileStore_UpdateMetrics(t *testing.T) {
 		file         *os.File
 		syncChannel  chan struct{}
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0          context.Context
@@ -355,7 +347,6 @@ func TestFileStore_UpdateMetrics(t *testing.T) {
 				file:         tt.fields.file,
 				syncChannel:  tt.fields.syncChannel,
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			if err := fs.UpdateMetrics(tt.args.in0, tt.args.metricsBatch); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateMetrics() error = %v, wantErr %v", err, tt.wantErr)
@@ -381,7 +372,6 @@ func TestFileStore_GetMetric(t *testing.T) {
 		file         *os.File
 		syncChannel  chan struct{}
 		metricsCache map[string]*metrics.Metric
-		mu           sync.Mutex
 	}
 	type args struct {
 		in0        context.Context
@@ -418,7 +408,6 @@ func TestFileStore_GetMetric(t *testing.T) {
 				file:         tt.fields.file,
 				syncChannel:  tt.fields.syncChannel,
 				metricsCache: tt.fields.metricsCache,
-				mu:           tt.fields.mu,
 			}
 			_ = fs.UpdateGaugeMetric(context.Background(), tt.args.metricName, testMetricValue)
 			got, err := fs.GetMetric(tt.args.in0, tt.args.metricName, tt.args.in2)
