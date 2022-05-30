@@ -22,17 +22,7 @@ const (
 	counterBitSize   = 64
 )
 
-func TestPoolWorker(t *testing.T) {
-	mtr := repository.NewInMemoryStore()
-	agent.UpdateMemStatsMetrics(context.Background(), mtr)
-
-	counterMetric, _ := mtr.GetMetric(context.Background(), "PollCount", "")
-	if *counterMetric.Delta != 1 {
-		t.Errorf("Counter wasn't incremented: %d", *counterMetric.Delta)
-	}
-}
-
-func TestReportWorker(t *testing.T) {
+func TestSendReport(t *testing.T) {
 	mtr := repository.NewInMemoryStore()
 	agent.UpdateMemStatsMetrics(context.Background(), mtr)
 
@@ -79,7 +69,7 @@ func TestReportWorker(t *testing.T) {
 	agent.SendReport(context.Background(), mtr, server.URL, server.Client())
 }
 
-func TestSendReportJSONWorker(t *testing.T) {
+func TestSendReportJSON(t *testing.T) {
 	mtr := repository.NewInMemoryStore()
 	agent.UpdateMemStatsMetrics(context.Background(), mtr)
 
