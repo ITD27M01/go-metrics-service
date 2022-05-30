@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -418,6 +419,64 @@ func TestFileStore_GetMetric(t *testing.T) {
 			if !assert.Equal(t, *got.Value, *tt.want.Value) {
 				t.Errorf("GetMetric() got = %v, want %v", *got.Value, *tt.want.Value)
 			}
+		})
+	}
+}
+
+func TestFileStore_GetMetrics(t *testing.T) {
+	f, _ := os.CreateTemp("", "tests")
+	defer f.Close()
+	defer os.Remove(f.Name())
+
+	testMetrics := []byte(testMetrics)
+	f.Write(testMetrics)
+	f.Seek(0, 0)
+
+	metricsCache := make(map[string]*metrics.Metric)
+
+	type fields struct {
+		file         *os.File
+		syncChannel  chan struct{}
+		metricsCache map[string]*metrics.Metric
+	}
+	type args struct {
+		in0 context.Context
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string]*metrics.Metric
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "TestGetMetrics",
+			fields: fields{
+				file:         f,
+				syncChannel:  make(chan struct{}, 1),
+				metricsCache: metricsCache,
+			},
+			args: args{
+				in0: context.Background(),
+			},
+			want: metricsCache,
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return false
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := &FileStore{
+				file:         tt.fields.file,
+				syncChannel:  tt.fields.syncChannel,
+				metricsCache: tt.fields.metricsCache,
+			}
+			got, err := fs.GetMetrics(tt.args.in0)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetMetrics(%v)", tt.args.in0)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetMetrics(%v)", tt.args.in0)
 		})
 	}
 }
