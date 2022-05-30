@@ -10,6 +10,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+// Start starts poller and reporter agent's workers
 func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfig ReporterConfig) {
 	metricsStore := repository.NewInMemoryStore()
 
@@ -32,6 +33,7 @@ func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfi
 	log.Info().Msg("All workers are stopped")
 }
 
+// getSignalChannel returns a channel for waiting and Cntrl-C signal
 func getSignalChannel() chan os.Signal {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel,

@@ -12,6 +12,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+// Config collects configuration for metrics server
 type Config struct {
 	ServerAddress string        `env:"ADDRESS"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
@@ -24,19 +25,21 @@ type Config struct {
 	MetricsStore repository.Store
 }
 
+// MetricsServer is a server for metrics collecting
 type MetricsServer struct {
 	Cfg      *Config
 	context  context.Context
 	listener *http.Server
 }
 
+// Start starts a server for metrics collecting
 func (s *MetricsServer) Start(ctx context.Context) {
 	serverContext, serverCancel := context.WithCancel(ctx)
 	s.context = serverContext
 
 	storeContext, storeCancel := context.WithCancel(ctx)
 
-	closeStore := runStore(storeContext, s.Cfg)
+	closeStore := initStore(storeContext, s.Cfg)
 
 	go s.startListener()
 	log.Info().Msgf("Start listener on %s", s.Cfg.ServerAddress)
@@ -52,6 +55,7 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	serverCancel()
 }
 
+// getSignalChannel returns a channel from where stop signal will be received
 func getSignalChannel() chan os.Signal {
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel,

@@ -21,14 +21,17 @@ const (
 	sampleTime       = 1 * time.Second
 )
 
+// PollerConfig is a config for poller worker
 type PollerConfig struct {
 	PollInterval time.Duration `env:"POLL_INTERVAL"`
 }
 
+// PollerWorker defines poller worker type
 type PollerWorker struct {
 	Cfg PollerConfig
 }
 
+// RunMemStats runs worker for collecting memory metrics from localhost
 func (pw *PollerWorker) RunMemStats(ctx context.Context, mtr repository.Store) {
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
@@ -46,6 +49,7 @@ func (pw *PollerWorker) RunMemStats(ctx context.Context, mtr repository.Store) {
 	}
 }
 
+// RunPsStats runs worker for collecting processes and cpu metrics from localhost
 func (pw *PollerWorker) RunPsStats(ctx context.Context, mtr repository.Store) {
 	pollTicker := time.NewTicker(pw.Cfg.PollInterval)
 	defer pollTicker.Stop()
@@ -63,6 +67,7 @@ func (pw *PollerWorker) RunPsStats(ctx context.Context, mtr repository.Store) {
 	}
 }
 
+// UpdateMemStatsMetrics updates the memory metrics
 func UpdateMemStatsMetrics(ctx context.Context, mtr repository.Store) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -102,11 +107,13 @@ func UpdateMemStatsMetrics(ctx context.Context, mtr repository.Store) {
 	_ = mtr.UpdateGaugeMetric(ctx, "RandomValue", metrics.Gauge(rand.Int63()))
 }
 
+// UpdatePsMetrics collects process and cpu metrics from localhost
 func UpdatePsMetrics(ctx context.Context, mtr repository.Store) {
 	updateMemPsMetrics(ctx, mtr)
 	updateCPUPsMetrics(ctx, mtr)
 }
 
+// updateMemPsMetrics updates virtual memory metrics
 func updateMemPsMetrics(ctx context.Context, mtr repository.Store) {
 	vm, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {
@@ -119,6 +126,7 @@ func updateMemPsMetrics(ctx context.Context, mtr repository.Store) {
 	_ = mtr.UpdateGaugeMetric(ctx, "FreeMemory", metrics.Gauge(vm.Free))
 }
 
+// updateCPUPsMetrics updates cpu metrics
 func updateCPUPsMetrics(ctx context.Context, mtr repository.Store) {
 	cpuUtilization, err := cpu.PercentWithContext(ctx, sampleTime, true)
 	if err != nil {
