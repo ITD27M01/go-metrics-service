@@ -184,3 +184,55 @@ func TestInMemoryStore_UpdateMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestInMemoryStore_GetMetric(t *testing.T) {
+	metricsCache := make(map[string]*metrics.Metric)
+	testMetricName := "Alloc"
+	testMetricValue := metrics.Gauge(testMetricValue)
+
+	type fields struct {
+		metricsCache map[string]*metrics.Metric
+	}
+	type args struct {
+		in0        context.Context
+		metricName string
+		in2        string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *metrics.Metric
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "TestGetMetric",
+			fields: fields{
+				metricsCache: metricsCache,
+			},
+			args: args{
+				in0:        context.Background(),
+				metricName: testMetricName,
+			},
+			want: &metrics.Metric{
+				ID:    testMetricName,
+				Value: &testMetricValue,
+			},
+			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return false
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &InMemoryStore{
+				metricsCache: tt.fields.metricsCache,
+			}
+			got, err := m.GetMetric(tt.args.in0, tt.args.metricName, tt.args.in2)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetMetric(%v, %v, %v)", tt.args.in0, tt.args.metricName, tt.args.in2)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetMetric(%v, %v, %v)", tt.args.in0, tt.args.metricName, tt.args.in2)
+		})
+	}
+}
