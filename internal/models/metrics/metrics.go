@@ -21,11 +21,11 @@ type Counter int64
 
 // Metric defines type for metric
 type Metric struct {
-	ID    string   `json:"id"`              // Имя метрики
-	MType string   `json:"type"`            // Параметр, принимающий значение gauge или counter
-	Delta *Counter `json:"delta,omitempty"` // Значение метрики в случае передачи counter
-	Value *Gauge   `json:"value,omitempty"` // Значение метрики в случае передачи gauge
-	Hash  string   `json:"hash,omitempty"`  // Значение хеш-функции
+	ID    string   `json:"id"`              // Metric name
+	MType string   `json:"type"`            // Type can be gauge or counter
+	Delta *Counter `json:"delta,omitempty"` // Metric value for counter
+	Value *Gauge   `json:"value,omitempty"` // Metric value for gauge
+	Hash  string   `json:"hash,omitempty"`  // Metric hash
 }
 
 // EncodeMetric helps to encode the metric
