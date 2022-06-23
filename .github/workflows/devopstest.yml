@@ -47,7 +47,8 @@ jobs:
 
       - name: Download modules
         run: |
-          (go mod download)
+          go mod download
+          time go test -cover ./...
 
       - name: Run migrations
         run: |
