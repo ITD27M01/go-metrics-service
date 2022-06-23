@@ -11,10 +11,15 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+var (
+	_ Store = (*FileStore)(nil)
+)
+
 const (
 	fileMode = 0640
 )
 
+// FileStore implements Store interface to store metrics in file
 type FileStore struct {
 	file         *os.File
 	syncChannel  chan struct{}
@@ -22,6 +27,7 @@ type FileStore struct {
 	mu           sync.Mutex
 }
 
+// NewFileStore creates in file store
 func NewFileStore(filePath string, syncChannel chan struct{}) (*FileStore, error) {
 	var fs FileStore
 
@@ -40,6 +46,7 @@ func NewFileStore(filePath string, syncChannel chan struct{}) (*FileStore, error
 	return &fs, nil
 }
 
+// UpdateCounterMetric updates counter metric type
 func (fs *FileStore) UpdateCounterMetric(_ context.Context, metricName string, metricData metrics.Counter) error {
 	fs.mu.Lock()
 	defer fs.sync()
@@ -62,6 +69,7 @@ func (fs *FileStore) UpdateCounterMetric(_ context.Context, metricName string, m
 	return nil
 }
 
+// ResetCounterMetric resets counter to default zero value
 func (fs *FileStore) ResetCounterMetric(_ context.Context, metricName string) error {
 	fs.mu.Lock()
 	defer fs.sync()
@@ -85,6 +93,7 @@ func (fs *FileStore) ResetCounterMetric(_ context.Context, metricName string) er
 	return nil
 }
 
+// UpdateGaugeMetric updates gauge type metric
 func (fs *FileStore) UpdateGaugeMetric(_ context.Context, metricName string, metricData metrics.Gauge) error {
 	fs.mu.Lock()
 	defer fs.sync()
@@ -107,6 +116,7 @@ func (fs *FileStore) UpdateGaugeMetric(_ context.Context, metricName string, met
 	return nil
 }
 
+// UpdateMetrics update number of metrics
 func (fs *FileStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Metric) error {
 	fs.mu.Lock()
 	defer fs.sync()
@@ -131,6 +141,7 @@ func (fs *FileStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Me
 	return nil
 }
 
+// GetMetric return metric by name
 func (fs *FileStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, error) {
 	metric, ok := fs.metricsCache[metricName]
 	if !ok {
@@ -140,20 +151,24 @@ func (fs *FileStore) GetMetric(_ context.Context, metricName string, _ string) (
 	return metric, nil
 }
 
+// GetMetrics returns all of stored metrics
 func (fs *FileStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
 	return fs.metricsCache, nil
 }
 
+// sync sends signal to flush data to disk
 func (fs *FileStore) sync() {
 	fs.syncChannel <- struct{}{}
 }
 
+// Ping checks that underlying store is alive
 func (fs *FileStore) Ping(_ context.Context) error {
 	_, err := fs.file.Stat()
 
 	return err
 }
 
+// Close closes file descriptor
 func (fs *FileStore) Close() error {
 	if err := fs.SaveMetrics(); err != nil {
 		log.Error().Err(err).Msg("Something went wrong durin metrics preserve")
@@ -166,6 +181,7 @@ func (fs *FileStore) Close() error {
 	return fs.file.Close()
 }
 
+// LoadMetrics helper utility to load metrics from file
 func (fs *FileStore) LoadMetrics() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -177,6 +193,7 @@ func (fs *FileStore) LoadMetrics() error {
 	return jsonDecoder.Decode(&(fs.metricsCache))
 }
 
+// SaveMetrics dumps metrics to file
 func (fs *FileStore) SaveMetrics() (err error) {
 	log.Info().Msgf("Dump metrics to %s", fs.file.Name())
 

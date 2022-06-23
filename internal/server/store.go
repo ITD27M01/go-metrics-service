@@ -8,7 +8,8 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
-func runStore(ctx context.Context, config *Config) func() error {
+// initStore creates storage repository for metrics
+func initStore(ctx context.Context, config *Config) func() error {
 	switch {
 	case config.DatabaseDSN != "":
 		metricsStore, err := repository.NewDBStore(config.DatabaseDSN)
