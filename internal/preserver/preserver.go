@@ -8,12 +8,14 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+// Preserver defines worker to preserve the metrics in file store
 type Preserver struct {
 	store         *repository.FileStore
 	storeInterval time.Duration
 	syncChannel   chan struct{}
 }
 
+// NewPreserver creates preserver
 func NewPreserver(store *repository.FileStore, storeInterval time.Duration, syncChannel chan struct{}) *Preserver {
 	p := Preserver{
 		store:         store,
@@ -24,6 +26,7 @@ func NewPreserver(store *repository.FileStore, storeInterval time.Duration, sync
 	return &p
 }
 
+// RunPreserver runs preserver worker
 func (p *Preserver) RunPreserver(ctx context.Context) {
 	log.Info().Msg("Run preserver for metrics")
 

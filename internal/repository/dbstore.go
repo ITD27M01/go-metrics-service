@@ -15,10 +15,16 @@ const (
 	psqlDriverName = "pgx"
 )
 
+var (
+	_ Store = (*DBStore)(nil)
+)
+
+// DBStore implements Store interface to store metrics in database
 type DBStore struct {
 	connection *sql.DB
 }
 
+// NewDBStore creates db store
 func NewDBStore(databaseDSN string) (*DBStore, error) {
 	var db DBStore
 
@@ -34,6 +40,7 @@ func NewDBStore(databaseDSN string) (*DBStore, error) {
 	return &db, nil
 }
 
+// UpdateCounterMetric updates counter metric type
 func (db *DBStore) UpdateCounterMetric(ctx context.Context, metricName string, metricData metrics.Counter) error {
 	var counter metrics.Counter
 	row := db.connection.QueryRowContext(ctx,
@@ -53,6 +60,7 @@ func (db *DBStore) UpdateCounterMetric(ctx context.Context, metricName string, m
 	return err
 }
 
+// ResetCounterMetric resets counter to default zero value
 func (db *DBStore) ResetCounterMetric(ctx context.Context, metricName string) error {
 	var zero metrics.Counter
 	_, err := db.connection.ExecContext(ctx,
@@ -63,6 +71,7 @@ func (db *DBStore) ResetCounterMetric(ctx context.Context, metricName string) er
 	return err
 }
 
+// UpdateGaugeMetric updates gauge type metric
 func (db *DBStore) UpdateGaugeMetric(ctx context.Context, metricName string, metricData metrics.Gauge) error {
 	_, err := db.connection.ExecContext(ctx,
 		"INSERT INTO gauge (metric_id, metric_value) VALUES ($1, $2) "+
@@ -72,6 +81,7 @@ func (db *DBStore) UpdateGaugeMetric(ctx context.Context, metricName string, met
 	return err
 }
 
+// GetMetric return metric by name
 func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType string) (*metrics.Metric, error) {
 	metric := metrics.Metric{
 		ID:    metricName,
@@ -112,6 +122,7 @@ func (db *DBStore) GetMetric(ctx context.Context, metricName string, metricType 
 	return &metric, nil
 }
 
+// UpdateMetrics update number of metrics
 func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Metric) error {
 	tx, err := db.connection.BeginTx(ctx, nil)
 	if err != nil {
@@ -192,6 +203,7 @@ func (db *DBStore) UpdateMetrics(ctx context.Context, metricsBatch []*metrics.Me
 	return nil
 }
 
+// GetMetrics returns all of stored metrics
 func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, error) {
 	metricsMap := make(map[string]*metrics.Metric)
 
@@ -263,10 +275,12 @@ func (db *DBStore) GetMetrics(ctx context.Context) (map[string]*metrics.Metric, 
 	return metricsMap, nil
 }
 
+// Ping checks that underlying store is alive
 func (db *DBStore) Ping(ctx context.Context) error {
 	return db.connection.PingContext(ctx)
 }
 
+// Close closes database connection
 func (db *DBStore) Close() error {
 	log.Info().Msgf("Close database connection")
 

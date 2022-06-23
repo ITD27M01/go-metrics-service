@@ -15,6 +15,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+// ReporterConfig is a config for reporter worker
 type ReporterConfig struct {
 	ServerScheme   string `env:"SERVER_SCHEME" envDefault:"http"`
 	ServerAddress  string `env:"ADDRESS"`
@@ -24,10 +25,12 @@ type ReporterConfig struct {
 	SignKey        string        `env:"KEY"`
 }
 
+// ReportWorker defines reporter worker object
 type ReportWorker struct {
 	Cfg ReporterConfig
 }
 
+// Run runs reporter worker
 func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	reportTicker := time.NewTicker(rw.Cfg.ReportInterval)
 	defer reportTicker.Stop()
@@ -52,6 +55,7 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	}
 }
 
+// SendReport makes work for sending each metric in url params
 func SendReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
@@ -78,6 +82,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 	}
 }
 
+// SendReportJSON gets metrics from underlying storage and sends each as a json object
 func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
@@ -97,6 +102,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	}
 }
 
+// SendBatchJSON gets metrics from underlying storage and sends them as a json list
 func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
@@ -119,6 +125,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	}
 }
 
+// sendMetric sends metric in url params
 func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
 	log.Info().Msgf("Update metric: %s", metricUpdateURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
@@ -146,6 +153,7 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 	return nil
 }
 
+// sendMetricJSON reports to the server a metric in json
 func sendMetricJSON(ctx context.Context, serverURL string,
 	client *http.Client, metric *metrics.Metric, key string) error {
 	log.Info().Msgf("Update metric: %s", metric.ID)
@@ -181,6 +189,7 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 	return nil
 }
 
+// sendBatchJSON reports to the server a batch of metrics
 func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
 	var buf bytes.Buffer
 	jsonEncoder := json.NewEncoder(&buf)
@@ -214,6 +223,7 @@ func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Cl
 	return nil
 }
 
+// resetCounters helps to reset counter metric
 func resetCounters(ctx context.Context, mtr repository.Store) {
 	resetContext, resetCancel := context.WithTimeout(ctx, pollTimeout)
 	defer resetCancel()

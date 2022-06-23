@@ -8,11 +8,17 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 )
 
+var (
+	_ Store = (*InMemoryStore)(nil)
+)
+
+// InMemoryStore implements Store interface to store metrics in memory
 type InMemoryStore struct {
 	metricsCache map[string]*metrics.Metric
 	mu           sync.Mutex
 }
 
+// NewInMemoryStore creates in memory store
 func NewInMemoryStore() *InMemoryStore {
 	var m InMemoryStore
 
@@ -21,6 +27,7 @@ func NewInMemoryStore() *InMemoryStore {
 	return &m
 }
 
+// UpdateCounterMetric updates counter metric type
 func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string, metricData metrics.Counter) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -42,6 +49,7 @@ func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string
 	return nil
 }
 
+// ResetCounterMetric resets counter to default zero value
 func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -64,6 +72,7 @@ func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string)
 	return nil
 }
 
+// UpdateGaugeMetric updates gauge type metric
 func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, metricData metrics.Gauge) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -85,6 +94,7 @@ func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, 
 	return nil
 }
 
+// UpdateMetrics update number of metrics
 func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Metric) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -108,6 +118,7 @@ func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics
 	return nil
 }
 
+// GetMetric return metric by name
 func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, error) {
 	metric, ok := m.metricsCache[metricName]
 	if !ok {
@@ -117,8 +128,10 @@ func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string
 	return metric, nil
 }
 
+// GetMetrics returns all of stored metrics
 func (m *InMemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
 	return m.metricsCache, nil
 }
 
+// Ping checks that underlying store is alive
 func (m *InMemoryStore) Ping(_ context.Context) error { return nil }
