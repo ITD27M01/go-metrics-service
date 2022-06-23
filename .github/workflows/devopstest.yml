@@ -45,6 +45,10 @@ jobs:
           mv $GITHUB_WORKSPACE/.tools/devopstest /usr/local/bin/devopstest
           mv $GITHUB_WORKSPACE/.tools/random /usr/local/bin/random
 
+      - name: Download modules
+        run: |
+          (go mod download)
+
       - name: Run migrations
         run: |
           (go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest)
