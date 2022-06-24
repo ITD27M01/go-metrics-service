@@ -7,6 +7,7 @@ AGENT_BINNAME=agent
 STATICLINT_BINNAME=staticlint
 
 # Go related variables.
+GOFLAGS += '-ldflags="-s -w"'
 GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
 GOFILES=$(wildcard *.go)
@@ -34,7 +35,7 @@ test: go-test go-statictest go-vet
 
 compile: go-clean go-get-agent go-get-server build-agent build-server build-staticlint
 
-go-update: go-clean go-clean-cache go-tidy
+go-update: go-clean go-clean-cache go-tidy go-download
 
 go-clean:
 	@echo "  >  Cleaning build cache"
@@ -73,6 +74,10 @@ go-tidy:
 	@echo "  >  Update modules..."
 	@go mod tidy
 
+go-download:
+	@echo "  >  Download modules..."
+	@go mod download
+
 go-test:
 	@echo "  >  Test project..."
 	@go test ./...
@@ -90,5 +95,5 @@ go-vet:
 	@go vet ./...
 
 go-migrate:
-	@echo "  >  Update migrations..."
+	@echo "  >  Install migration tools..."
 	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
