@@ -23,6 +23,10 @@ MAKEFLAGS += --silent
 build:
 	$(MAKE) -s compile
 
+## compile: Compile the binaries for github
+build-github:
+	$(MAKE) -s compile-github
+
 ## clean: Clean build files. Runs `go clean` internally.
 clean:
 	$(MAKE) go-clean
@@ -34,6 +38,8 @@ update:
 test: go-test go-statictest go-vet
 
 compile: go-clean go-get-agent go-get-server build-agent build-server build-staticlint
+
+compile-github: go-clean go-get-agent go-get-server build-agent-github build-server-github
 
 go-update: go-clean go-clean-cache go-tidy go-download
 
@@ -56,9 +62,17 @@ go-get-staticlint:
 
 build-server:
 	@echo "  >  Building server binaries..."
+	@cd $(SERVER_SOURCE); go build -o $(GOBIN)/$(SERVER_BINNAME) $(GOFILES)
+
+build-server-github:
+	@echo "  >  Building server binaries..."
 	@cd $(SERVER_SOURCE); go build -o $(SERVER_SOURCE)/$(SERVER_BINNAME) $(GOFILES)
 
 build-agent:
+	@echo "  >  Building agent binaries..."
+	@cd $(AGENT_SOURCE); go build -o $(GOBIN)/$(AGENT_BINNAME) $(GOFILES)
+
+build-agent-github:
 	@echo "  >  Building agent binaries..."
 	@cd $(AGENT_SOURCE); go build -o $(AGENT_SOURCE)/$(AGENT_BINNAME) $(GOFILES)
 

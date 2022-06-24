@@ -60,7 +60,7 @@ jobs:
 
       - name: Build binaries
         run: |
-          make build
+          make build-github
 
 # Соглашение:
 #   Во всех заданиях, нужно обрабатывать все пограничные случаи и негатив-кейсы.
