@@ -56,11 +56,11 @@ go-get-staticlint:
 
 build-server:
 	@echo "  >  Building server binaries..."
-	@cd $(SERVER_SOURCE); go build -o $(GOBIN)/$(SERVER_BINNAME) $(GOFILES)
+	@cd $(SERVER_SOURCE); go build -o $(SERVER_SOURCE)/$(SERVER_BINNAME) $(GOFILES)
 
 build-agent:
 	@echo "  >  Building agent binaries..."
-	@cd $(AGENT_SOURCE); go build -o $(GOBIN)/$(AGENT_BINNAME) $(GOFILES)
+	@cd $(AGENT_SOURCE); go build -o $(AGENT_SOURCE)/$(AGENT_BINNAME) $(GOFILES)
 
 build-staticlint:
 	@echo "  >  Building staticlint binaries..."
