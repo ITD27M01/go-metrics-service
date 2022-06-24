@@ -47,7 +47,7 @@ jobs:
 
       - name: Download modules
         run: |
-          go mod download
+          make update
 
       - name: Check cover timings
         run: |
@@ -58,10 +58,9 @@ jobs:
           (go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest)
           (migrate -path db/migrations -database $DATABASE_DSN up)
 
-      - name: Build agent binary
+      - name: Build binaries
         run: |
-          cd cmd/agent
-          go build -o agent
+          make build-github
 
 # Соглашение:
 #   Во всех заданиях, нужно обрабатывать все пограничные случаи и негатив-кейсы.
@@ -120,11 +119,6 @@ jobs:
         run: |
           devopstest -test.v -test.run=^TestIteration1$ \
             -agent-binary-path=cmd/agent/agent
-
-      - name: Build server binary
-        run: |
-          cd cmd/server
-          go build -o server
 
 # II. Задание ко второму инкременту.
 # Разработать сервер по сбору рантайм метрик, который собирает репорты от агентов по протоколу http.
