@@ -2,12 +2,16 @@
 SHELL = /bin/bash
 .PHONY: build clean update compile update clean get build clean-cache tidy
 
+BUILD_VERSION=2022.06
+BUILD_DATE := $(shell date +"%Y%m%d%H%M")
+BUILD_COMMIT := $(shell git log -n 1 --pretty=format:"%H")
+
 SERVER_BINNAME=server
 AGENT_BINNAME=agent
 STATICLINT_BINNAME=staticlint
 
 # Go related variables.
-GOFLAGS += '-ldflags="-s -w"'
+LDFLAGS := "-w -s -X main.buildVersion=${BUILD_VERSION} -X main.buildDate=${BUILD_DATE} -X main.buildCommit=${BUILD_COMMIT}"
 GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
 GOFILES=$(wildcard *.go)
@@ -62,19 +66,19 @@ go-get-staticlint:
 
 build-server:
 	@echo "  >  Building server binaries..."
-	@cd $(SERVER_SOURCE); go build -o $(GOBIN)/$(SERVER_BINNAME) $(GOFILES)
+	@cd $(SERVER_SOURCE); go build -ldflags $(LDFLAGS) -o $(GOBIN)/$(SERVER_BINNAME) $(GOFILES)
 
 build-server-github:
 	@echo "  >  Building server binaries..."
-	@cd $(SERVER_SOURCE); go build -o $(SERVER_SOURCE)/$(SERVER_BINNAME) $(GOFILES)
+	@cd $(SERVER_SOURCE); go build -ldflags $(LDFLAGS) -o $(SERVER_SOURCE)/$(SERVER_BINNAME) $(GOFILES)
 
 build-agent:
 	@echo "  >  Building agent binaries..."
-	@cd $(AGENT_SOURCE); go build -o $(GOBIN)/$(AGENT_BINNAME) $(GOFILES)
+	@cd $(AGENT_SOURCE); go build -ldflags $(LDFLAGS) -o $(GOBIN)/$(AGENT_BINNAME) $(GOFILES)
 
 build-agent-github:
 	@echo "  >  Building agent binaries..."
-	@cd $(AGENT_SOURCE); go build -o $(AGENT_SOURCE)/$(AGENT_BINNAME) $(GOFILES)
+	@cd $(AGENT_SOURCE); go build -ldflags $(LDFLAGS) -o $(AGENT_SOURCE)/$(AGENT_BINNAME) $(GOFILES)
 
 build-staticlint:
 	@echo "  >  Building staticlint binaries..."
