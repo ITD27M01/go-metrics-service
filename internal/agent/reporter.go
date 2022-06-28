@@ -172,6 +172,9 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 		return err
 	}
 	encryptedBody, err := encryption.RSAEncrypt(body, publicKey)
+	if err != nil {
+		return err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewBuffer(encryptedBody))
 	if err != nil {
