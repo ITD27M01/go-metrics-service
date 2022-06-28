@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,22 +13,24 @@ import (
 
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
+	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 // ReporterConfig is a config for reporter worker
 type ReporterConfig struct {
-	ServerScheme   string `env:"SERVER_SCHEME" envDefault:"http"`
-	ServerAddress  string `env:"ADDRESS"`
-	ServerPath     string `env:"SERVER_PATH" envDefault:"/update/"`
-	ServerTimeout  time.Duration
+	ServerScheme   string        `env:"SERVER_SCHEME" envDefault:"http"`
+	ServerAddress  string        `env:"ADDRESS"`
+	ServerPath     string        `env:"SERVER_PATH" envDefault:"/update/"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
+	ServerTimeout  time.Duration `env:"SERVER_TIMEOUT"`
+	CryptoKey      string        `env:"CRYPTO_KEY"`
 	SignKey        string        `env:"KEY"`
 }
 
 // ReportWorker defines reporter worker object
 type ReportWorker struct {
-	Cfg ReporterConfig
+	Cfg *ReporterConfig
 }
 
 // Run runs reporter worker
@@ -42,14 +45,19 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
 	sendURL := serverURL + rw.Cfg.ServerPath
 
+	publicKey, err := encryption.ReadPublicKey(rw.Cfg.CryptoKey)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Couldn't read public key from %s", rw.Cfg.CryptoKey)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-reportTicker.C:
 			SendReport(ctx, mtr, sendURL, &client)
-			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey)
-			SendBatchJSON(ctx, mtr, serverURL, &client)
+			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey, publicKey)
+			SendBatchJSON(ctx, mtr, serverURL, &client, publicKey)
 			resetCounters(ctx, mtr)
 		}
 	}
@@ -83,7 +91,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 }
 
 // SendReportJSON gets metrics from underlying storage and sends each as a json object
-func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
+func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string, publicKey *rsa.PublicKey) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -95,7 +103,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
 	for _, v := range metricsMap {
-		err := sendMetricJSON(ctx, updateURL, client, v, key)
+		err := sendMetricJSON(ctx, updateURL, client, v, key, publicKey)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
@@ -103,7 +111,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 }
 
 // SendBatchJSON gets metrics from underlying storage and sends them as a json list
-func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, publicKey *rsa.PublicKey) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -112,7 +120,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 		log.Error().Err(err).Msg("Some error occurred during metrics get")
 	}
 
-	metricsSlice := make([]*metrics.Metric, 0)
+	metricsSlice := make([]*metrics.Metric, 0, len(metricsMap))
 	for _, v := range metricsMap {
 		metricsSlice = append(metricsSlice, v)
 	}
@@ -120,7 +128,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/updates/", serverURL)
 
-	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
+	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice, publicKey); err != nil {
 		log.Error().Err(err).Msg("Filed to send metrics")
 	}
 }
@@ -155,16 +163,17 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 
 // sendMetricJSON reports to the server a metric in json
 func sendMetricJSON(ctx context.Context, serverURL string,
-	client *http.Client, metric *metrics.Metric, key string) error {
+	client *http.Client, metric *metrics.Metric, key string, publicKey *rsa.PublicKey) error {
 	log.Info().Msgf("Update metric: %s", metric.ID)
 
 	metric.SetHash(key)
-	body, err := metric.EncodeMetric()
+	body, err := json.Marshal(metric)
 	if err != nil {
 		return err
 	}
+	encryptedBody, err := encryption.RSAEncrypt(body, publicKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewBuffer(encryptedBody))
 	if err != nil {
 		return err
 	}
@@ -190,15 +199,20 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 }
 
 // sendBatchJSON reports to the server a batch of metrics
-func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
-	var buf bytes.Buffer
-	jsonEncoder := json.NewEncoder(&buf)
+func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric,
+	publicKey *rsa.PublicKey) error {
 
-	if err := jsonEncoder.Encode(metrics); err != nil {
+	encodedMetrics, err := json.Marshal(metrics)
+	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, &buf)
+	encryptedBody, err := encryption.RSAEncrypt(encodedMetrics, publicKey)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, bytes.NewBuffer(encryptedBody))
 	if err != nil {
 		return err
 	}

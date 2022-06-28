@@ -230,7 +230,7 @@ var tests = []test{
 
 func TestRouter(t *testing.T) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -249,7 +249,7 @@ func TestRouter(t *testing.T) {
 
 func BenchmarkRouter(b *testing.B) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 

@@ -9,34 +9,34 @@ import (
 )
 
 // initStore creates storage repository for metrics
-func initStore(ctx context.Context, config *Config) func() error {
+func initStore(ctx context.Context, server *MetricsServer) func() error {
 	switch {
-	case config.DatabaseDSN != "":
-		metricsStore, err := repository.NewDBStore(config.DatabaseDSN)
+	case server.Cfg.DatabaseDSN != "":
+		metricsStore, err := repository.NewDBStore(server.Cfg.DatabaseDSN)
 		if err != nil {
 			log.Fatal().Msgf("Couldn't connect to database: %q", err)
 		}
 
-		config.MetricsStore = metricsStore
+		server.metricsStore = metricsStore
 
 		log.Info().Msg("Using Database storage")
 
 		return func() error {
 			return metricsStore.Close()
 		}
-	case config.StoreFilePath != "":
+	case server.Cfg.StoreFilePath != "":
 		syncChannel := make(chan struct{}, 1)
-		metricsStore, err := repository.NewFileStore(config.StoreFilePath, syncChannel)
+		metricsStore, err := repository.NewFileStore(server.Cfg.StoreFilePath, syncChannel)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to make file storage")
 		}
-		config.MetricsStore = metricsStore
+		server.metricsStore = metricsStore
 
 		log.Info().Msg("Using file storage")
 
-		metricsPreserver := preserver.NewPreserver(metricsStore, config.StoreInterval, syncChannel)
+		metricsPreserver := preserver.NewPreserver(metricsStore, server.Cfg.StoreInterval, syncChannel)
 
-		if config.Restore && metricsStore.LoadMetrics() != nil {
+		if server.Cfg.Restore && metricsStore.LoadMetrics() != nil {
 			log.Error().Msg("Filed to load metrics from store")
 		}
 
@@ -59,7 +59,7 @@ func initStore(ctx context.Context, config *Config) func() error {
 		}
 	default:
 		log.Info().Msg("Using memory storage")
-		config.MetricsStore = repository.NewInMemoryStore()
+		server.metricsStore = repository.NewInMemoryStore()
 
 		return func() error {
 			return nil

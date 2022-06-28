@@ -24,7 +24,7 @@ func (s *MetricsServer) startListener() {
 	mux.Use(compressor.Handler)
 
 	mux.Mount("/debug", middleware.Profiler())
-	RegisterHandlers(mux, s.Cfg.MetricsStore, s.Cfg.SignKey)
+	RegisterHandlers(mux, s.metricsStore, s.Cfg.SignKey, s.privateKey)
 
 	httpServer := &http.Server{
 		Addr:    s.Cfg.ServerAddress,
