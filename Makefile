@@ -23,6 +23,9 @@ STATICLINT_SOURCE=$(GOBASE)/cmd/staticlint
 # Make is verbose in Linux. Make it silent.
 MAKEFLAGS += --silent
 
+# For tests
+DATABASE_DSN = "postgres://dbuser:dbpass@localhost:5432/metrics?sslmode=disable"
+
 ## compile: Compile the binary.
 build:
 	$(MAKE) -s compile
@@ -38,6 +41,19 @@ clean:
 ## update: Update modules
 update:
 	$(MAKE) go-update
+
+migration-tools:
+	@echo "  >  Install migration tools..."
+	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+migrate:
+	@echo "  >  Do DB migrations..."
+	@migrate -path db/migrations -database ${DATABASE_DSN} up
+
+keys:
+	@echo "	 > Build RSA keys for agent to server encryption"
+	@openssl genrsa -out private-key.pem 4096
+	@openssl rsa -in private-key.pem -outform PEM -pubout -out public-key.pem
 
 test: go-test go-statictest go-vet
 
@@ -111,7 +127,3 @@ go-statictest: go-container
 go-vet:
 	@echo "  >  Vet project..."
 	@go vet ./...
-
-go-migrate:
-	@echo "  >  Install migration tools..."
-	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest

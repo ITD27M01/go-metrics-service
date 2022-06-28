@@ -19,14 +19,21 @@ services:
       DATABASE_DSN: "postgres://dbuser:dbpass@postgres:5432/metrics"
       KEY: "test"
       ADDRESS: "0.0.0.0:8080"
+      CRYPTO_KEY: "/etc/tls/private/private-key.pem"
+      LOG_LEVEL: "DEBUG"
     ports:
       - "8080:8080"
+    volumes:
+      - ${PWD}/private-key.pem:/etc/tls/private/private-key.pem
   agent:
     build: ./
     entrypoint: ["/app/bin/agent", "--log-level", "DEBUG"]
     environment:
       ADDRESS: "server:8080"
       KEY: "test"
+      CRYPTO_KEY: "/etc/tls/public-key.pem"
+    volumes:
+      - ${PWD}/public-key.pem:/etc/tls/public-key.pem
   tests:
     build: ./
     image: go-metrics-service

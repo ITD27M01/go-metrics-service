@@ -36,6 +36,7 @@ var (
 	PollInterval   time.Duration
 	ReportInterval time.Duration
 	ServerTimeout  time.Duration
+	CryptoKey      string
 	SignKey        string
 	LogLevel       string
 )
@@ -52,6 +53,9 @@ func init() {
 
 	rootCmd.Flags().DurationVarP(&PollInterval, "poll", "p", defaultPollInterval,
 		"Number of seconds to periodically get metrics")
+
+	rootCmd.Flags().StringVar(&CryptoKey, "crypto-key", "",
+		"A path to the pem file of public RSA key")
 
 	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
 		"Sign key for metrics")
