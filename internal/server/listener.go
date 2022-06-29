@@ -2,6 +2,7 @@ package server
 
 import (
 	"compress/gzip"
+	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -23,8 +24,10 @@ func (s *MetricsServer) startListener() {
 	compressor := middleware.NewCompressor(gzip.BestCompression)
 	mux.Use(compressor.Handler)
 
+	mux.Use(encryption.BodyDecrypt(s.privateKey))
+
 	mux.Mount("/debug", middleware.Profiler())
-	RegisterHandlers(mux, s.metricsStore, s.Cfg.SignKey, s.privateKey)
+	RegisterHandlers(mux, s.metricsStore, s.Cfg.SignKey)
 
 	httpServer := &http.Server{
 		Addr:    s.Cfg.ServerAddress,

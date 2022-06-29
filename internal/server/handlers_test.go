@@ -230,7 +230,7 @@ var tests = []test{
 
 func TestRouter(t *testing.T) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -249,7 +249,7 @@ func TestRouter(t *testing.T) {
 
 func BenchmarkRouter(b *testing.B) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -293,7 +293,7 @@ func testRequest(t *testing.T, ts *httptest.Server, testData test) {
 	resp, err := http.DefaultClient.Do(req)
 	assert.Equal(t, testData.want.code, resp.StatusCode)
 	require.NoError(t, err)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if testData.method == http.MethodGet {
 		respBody, err := ioutil.ReadAll(resp.Body)

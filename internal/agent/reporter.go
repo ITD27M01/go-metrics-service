@@ -3,7 +3,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,17 +37,21 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	reportTicker := time.NewTicker(rw.Cfg.ReportInterval)
 	defer reportTicker.Stop()
 
-	client := http.Client{
-		Timeout: rw.Cfg.ServerTimeout,
-	}
-
-	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
-	sendURL := serverURL + rw.Cfg.ServerPath
-
 	publicKey, err := encryption.ReadPublicKey(rw.Cfg.CryptoKey)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Couldn't read public key from %s", rw.Cfg.CryptoKey)
 	}
+
+	client := http.Client{
+		Timeout: rw.Cfg.ServerTimeout,
+		Transport: encryption.EncryptRoundTripper{
+			Proxied:   http.DefaultTransport,
+			PublicKey: publicKey,
+		},
+	}
+
+	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
+	sendURL := serverURL + rw.Cfg.ServerPath
 
 	for {
 		select {
@@ -56,8 +59,8 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 			return
 		case <-reportTicker.C:
 			SendReport(ctx, mtr, sendURL, &client)
-			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey, publicKey)
-			SendBatchJSON(ctx, mtr, serverURL, &client, publicKey)
+			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey)
+			SendBatchJSON(ctx, mtr, serverURL, &client)
 			resetCounters(ctx, mtr)
 		}
 	}
@@ -91,7 +94,7 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 }
 
 // SendReportJSON gets metrics from underlying storage and sends each as a json object
-func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string, publicKey *rsa.PublicKey) {
+func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -103,7 +106,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
 	for _, v := range metricsMap {
-		err := sendMetricJSON(ctx, updateURL, client, v, key, publicKey)
+		err := sendMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
@@ -111,7 +114,7 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 }
 
 // SendBatchJSON gets metrics from underlying storage and sends them as a json list
-func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, publicKey *rsa.PublicKey) {
+func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -128,7 +131,7 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/updates/", serverURL)
 
-	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice, publicKey); err != nil {
+	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
 		log.Error().Err(err).Msg("Filed to send metrics")
 	}
 }
@@ -163,7 +166,7 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 
 // sendMetricJSON reports to the server a metric in json
 func sendMetricJSON(ctx context.Context, serverURL string,
-	client *http.Client, metric *metrics.Metric, key string, publicKey *rsa.PublicKey) error {
+	client *http.Client, metric *metrics.Metric, key string) error {
 	log.Info().Msgf("Update metric: %s", metric.ID)
 
 	metric.SetHash(key)
@@ -171,12 +174,8 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 	if err != nil {
 		return err
 	}
-	encryptedBody, err := encryption.RSAEncrypt(body, publicKey)
-	if err != nil {
-		return err
-	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewBuffer(encryptedBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, serverURL, bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -202,20 +201,14 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 }
 
 // sendBatchJSON reports to the server a batch of metrics
-func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric,
-	publicKey *rsa.PublicKey) error {
+func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
 
 	encodedMetrics, err := json.Marshal(metrics)
 	if err != nil {
 		return err
 	}
 
-	encryptedBody, err := encryption.RSAEncrypt(encodedMetrics, publicKey)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, bytes.NewBuffer(encryptedBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricsUpdateURL, bytes.NewBuffer(encodedMetrics))
 	if err != nil {
 		return err
 	}
