@@ -9,7 +9,7 @@ import (
 
 // ExitCheckAnalyzer Checks that main() doesn't have os.Exit call
 var ExitCheckAnalyzer = &analysis.Analyzer{
-	Name: "exit-check",
+	Name: "exitcheck",
 	Doc:  "checks for os.Exit call in main",
 	Run:  run,
 }
