@@ -16,7 +16,7 @@ import (
 
 func ExamplePingHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -25,7 +25,7 @@ func ExamplePingHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Println(resp.Status)
 
@@ -34,7 +34,7 @@ func ExamplePingHandler() {
 
 func ExampleUpdateHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -51,7 +51,7 @@ func ExampleUpdateHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Printf("By JSON: %s", resp.Status)
 
@@ -62,7 +62,7 @@ func ExampleUpdateHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Printf(", By url params: %s", resp.Status)
 
@@ -71,7 +71,7 @@ func ExampleUpdateHandler() {
 
 func ExampleUpdatesHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -92,8 +92,7 @@ func ExampleUpdatesHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Println(resp.Status)
 
@@ -102,7 +101,7 @@ func ExampleUpdatesHandler() {
 
 func ExampleGetMetricHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -119,7 +118,7 @@ func ExampleGetMetricHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Println(resp.Status)
 
@@ -129,7 +128,7 @@ func ExampleGetMetricHandler() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	fmt.Println(resp.Status)
 
