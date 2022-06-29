@@ -1,6 +1,6 @@
 ---
 server:
-  address: "127.0.0.1:8081"
+  address: "127.0.0.1:8080"
   log_level: "DEBUG"
   store_interval: 20s
   sign_key: test
