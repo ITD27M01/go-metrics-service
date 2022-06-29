@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/itd27m01/go-metrics-service/internal/greetings"
 
 	"github.com/caarlos0/env/v6"
+
 	"github.com/itd27m01/go-metrics-service/cmd/server/cmd"
+	"github.com/itd27m01/go-metrics-service/internal/greetings"
 	"github.com/itd27m01/go-metrics-service/internal/server"
 	"github.com/itd27m01/go-metrics-service/pkg/logging"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
