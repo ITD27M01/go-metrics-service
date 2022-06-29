@@ -14,21 +14,21 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
-// Config collects configuration for metrics server
-type Config struct {
-	ServerAddress string        `env:"ADDRESS"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"`
-	StoreFilePath string        `env:"STORE_FILE"`
-	Restore       bool          `env:"RESTORE"`
-	CryptoKey     string        `env:"CRYPTO_KEY"`
-	SignKey       string        `env:"KEY"`
-	DatabaseDSN   string        `env:"DATABASE_DSN"`
-	LogLevel      string        `env:"LOG_LEVEL"`
+// ServerConfig collects configuration for metrics server
+type ServerConfig struct {
+	ServerAddress string        `yaml:"address" env:"ADDRESS"`
+	StoreInterval time.Duration `yaml:"store_interval" env:"STORE_INTERVAL"`
+	StoreFilePath string        `yaml:"store_file_path" env:"STORE_FILE"`
+	Restore       bool          `yaml:"restore" env:"RESTORE"`
+	CryptoKey     string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
+	SignKey       string        `yaml:"sign_key" env:"KEY"`
+	DatabaseDSN   string        `yaml:"database_dsn" env:"DATABASE_DSN"`
+	LogLevel      string        `yaml:"log_level" env:"LOG_LEVEL"`
 }
 
 // MetricsServer is a server for metrics collecting
 type MetricsServer struct {
-	Cfg          *Config
+	Cfg          *ServerConfig
 	context      context.Context
 	listener     *http.Server
 	metricsStore repository.Store

@@ -18,13 +18,13 @@ import (
 
 // ReporterConfig is a config for reporter worker
 type ReporterConfig struct {
-	ServerScheme   string        `env:"SERVER_SCHEME" envDefault:"http"`
-	ServerAddress  string        `env:"ADDRESS"`
-	ServerPath     string        `env:"SERVER_PATH" envDefault:"/update/"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	ServerTimeout  time.Duration `env:"SERVER_TIMEOUT"`
-	CryptoKey      string        `env:"CRYPTO_KEY"`
-	SignKey        string        `env:"KEY"`
+	ServerScheme   string        `yaml:"server_scheme" env:"SERVER_SCHEME" envDefault:"http"`
+	ServerAddress  string        `yaml:"server_address" env:"ADDRESS"`
+	ServerPath     string        `yaml:"server_path" env:"SERVER_PATH" envDefault:"/update/"`
+	ReportInterval time.Duration `yaml:"report_interval" env:"REPORT_INTERVAL"`
+	ServerTimeout  time.Duration `yaml:"server_timeout" env:"SERVER_TIMEOUT"`
+	CryptoKey      string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
+	SignKey        string        `yaml:"sign_key" env:"KEY"`
 }
 
 // ReportWorker defines reporter worker object
