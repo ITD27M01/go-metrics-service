@@ -6,7 +6,6 @@ on:
     workflows:
       - autotests
       - statictest
-    branches: [ main ]
     types:
       - completed
 
