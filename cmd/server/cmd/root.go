@@ -35,6 +35,7 @@ var (
 	Restore       bool
 	StoreInterval time.Duration
 	StoreFilePath string
+	CryptoKey     string
 	SignKey       string
 	DatabaseDSN   string
 	LogLevel      string
@@ -52,6 +53,9 @@ func init() {
 
 	rootCmd.Flags().DurationVarP(&StoreInterval, "interval", "i", defaultStoreInterval,
 		"Number of seconds to periodically save metrics")
+
+	rootCmd.Flags().StringVar(&CryptoKey, "crypto-key", "",
+		"A path to the pem file of private RSA key")
 
 	rootCmd.Flags().StringVarP(&SignKey, "key", "k", "",
 		"Sign key for metrics")

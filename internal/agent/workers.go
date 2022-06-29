@@ -19,7 +19,7 @@ func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfi
 	go pollWorker.RunMemStats(pollContext, metricsStore)
 	go pollWorker.RunPsStats(pollContext, metricsStore)
 
-	reportWorker := ReportWorker{Cfg: reportWorkerConfig}
+	reportWorker := ReportWorker{Cfg: &reportWorkerConfig}
 
 	reportContext, cancelReporter := context.WithCancel(ctx)
 	go reportWorker.Run(reportContext, metricsStore)

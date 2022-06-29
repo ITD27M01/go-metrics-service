@@ -16,7 +16,7 @@ import (
 
 func ExamplePingHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -34,7 +34,7 @@ func ExamplePingHandler() {
 
 func ExampleUpdateHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -71,7 +71,7 @@ func ExampleUpdateHandler() {
 
 func ExampleUpdatesHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -102,7 +102,7 @@ func ExampleUpdatesHandler() {
 
 func ExampleGetMetricHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "", nil)
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 

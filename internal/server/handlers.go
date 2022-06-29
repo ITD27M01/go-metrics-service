@@ -2,12 +2,15 @@ package server
 
 import (
 	"context"
+	"crypto/rsa"
 	"database/sql/driver"
 	_ "embed" // Use templates from file to render pages
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"html/template"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,10 +32,10 @@ const (
 )
 
 // RegisterHandlers registers metrics server handlers
-func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
+func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string, privateKey *rsa.PrivateKey) {
 	mux.Route("/ping", PingHandler(metricsStore))
-	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
-	mux.Route("/updates/", UpdatesHandler(metricsStore))
+	mux.Route("/update/", UpdateHandler(metricsStore, signKey, privateKey))
+	mux.Route("/updates/", UpdatesHandler(metricsStore, privateKey))
 	mux.Route("/value/", GetMetricHandler(metricsStore, signKey))
 	mux.Route("/", GetMetricsHandler(metricsStore))
 }
@@ -56,17 +59,17 @@ func PingHandler(metricsStore driver.Pinger) func(r chi.Router) {
 }
 
 // UpdateHandler is used to update metrics
-func UpdateHandler(metricsStore repository.Store, signKey string) func(r chi.Router) {
+func UpdateHandler(metricsStore repository.Store, signKey string, privateKey *rsa.PrivateKey) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", updateHandlerJSON(metricsStore, signKey))
+		r.Post("/", updateHandlerJSON(metricsStore, signKey, privateKey))
 		r.Post("/{metricType}/{metricName}/{metricData}", updateHandlerPlain(metricsStore))
 	}
 }
 
 // UpdatesHandler is used to update the batch of metrics
-func UpdatesHandler(metricsStore repository.Store) func(r chi.Router) {
+func UpdatesHandler(metricsStore repository.Store, privateKey *rsa.PrivateKey) func(r chi.Router) {
 	return func(r chi.Router) {
-		r.Post("/", updatesBatchHandler(metricsStore))
+		r.Post("/", updatesBatchHandler(metricsStore, privateKey))
 	}
 }
 
@@ -110,13 +113,22 @@ func GetMetricsHandler(metricsStore repository.Store) func(r chi.Router) {
 }
 
 // updateHandlerJSON does actual work to update the metric
-func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w http.ResponseWriter, r *http.Request) {
+func updateHandlerJSON(metricsStore repository.Store, signKey string, privateKey *rsa.PrivateKey) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
 		var metric metrics.Metric
-		err := json.NewDecoder(r.Body).Decode(&metric)
+
+		metricBody, err := decryptBody(r, privateKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Cannot decrypt provided data: %q", err), http.StatusBadRequest)
+			log.Error().Err(err).Msgf("Cannot decrypt provided data: %q", err)
+
+			return
+		}
+
+		err = json.Unmarshal(metricBody, &metric)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
 			log.Error().Err(err).Msgf("Cannot decode provided data: %q", err)
@@ -149,6 +161,7 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 					http.StatusBadRequest,
 				)
 			}
+			w.WriteHeader(http.StatusOK)
 		case metric.MType == metrics.MetricTypeCounter:
 			if metric.Delta == nil {
 				http.Error(
@@ -165,6 +178,7 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 					http.StatusBadRequest,
 				)
 			}
+			w.WriteHeader(http.StatusOK)
 		default:
 			http.Error(
 				w,
@@ -176,13 +190,22 @@ func updateHandlerJSON(metricsStore repository.Store, signKey string) func(w htt
 }
 
 // updatesBatchHandler does actual work to update batch of the metrics
-func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWriter, r *http.Request) {
+func updatesBatchHandler(metricsStore repository.Store, privateKey *rsa.PrivateKey) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestContext, requestCancel := context.WithTimeout(r.Context(), requestTimeout)
 		defer requestCancel()
 
 		var metricsSlice []*metrics.Metric
-		err := json.NewDecoder(r.Body).Decode(&metricsSlice)
+
+		metricsBody, err := decryptBody(r, privateKey)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Cannot decrypt provided data: %q", err), http.StatusBadRequest)
+			log.Error().Err(err).Msgf("Cannot decrypt provided data: %q", err)
+
+			return
+		}
+
+		err = json.Unmarshal(metricsBody, &metricsSlice)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot decode provided data: %q", err), http.StatusBadRequest)
 			log.Error().Err(err).Msgf("Cannot decode provided data: %q", err)
@@ -198,6 +221,8 @@ func updatesBatchHandler(metricsStore repository.Store) func(w http.ResponseWrit
 				http.StatusBadRequest,
 			)
 		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -266,14 +291,14 @@ func retrieveHandlerJSON(metricsStore repository.Store, signKey string) func(w h
 
 		metricData.SetHash(signKey)
 
-		encodedMetric, err := metricData.EncodeMetric()
+		encodedMetric, err := json.Marshal(metricData)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot encode metric data: %q", err), http.StatusInternalServerError)
 
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, err = w.Write(encodedMetric.Bytes())
+		_, err = w.Write(encodedMetric)
 		if err != nil {
 			log.Error().Err(err).Msg("Cannot send request")
 		}
@@ -350,4 +375,18 @@ func updateCounter(ctx context.Context, metricName string, metricData string, me
 	}
 
 	return err
+}
+
+// decryptBody decrypts body if it is encrypted
+func decryptBody(r *http.Request, privateKey *rsa.PrivateKey) ([]byte, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return body, err
+	}
+
+	if privateKey == nil {
+		return body, nil
+	}
+
+	return encryption.RSADecrypt(body, privateKey)
 }

@@ -30,6 +30,7 @@ func main() {
 		Restore:       cmd.Restore,
 		StoreFilePath: cmd.StoreFilePath,
 		DatabaseDSN:   cmd.DatabaseDSN,
+		CryptoKey:     cmd.CryptoKey,
 		SignKey:       cmd.SignKey,
 		LogLevel:      cmd.LogLevel,
 	}
