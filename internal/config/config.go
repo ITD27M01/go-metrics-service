@@ -1,9 +1,7 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 
 	"github.com/caarlos0/env/v6"
@@ -13,10 +11,6 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/agent"
 	"github.com/itd27m01/go-metrics-service/internal/server"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
-)
-
-const (
-	defaultConfigPath = "config.yaml"
 )
 
 // Config collects configuration for project
@@ -29,16 +23,12 @@ type Config struct {
 // ParseConfig parses config from file
 func (c *Config) ParseConfig(path string) error {
 	if path == "" {
-		path = defaultConfigPath
+		return nil
 	}
 
 	data, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err != nil {
 		return fmt.Errorf("can't open config: %w", err)
-	}
-
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil
 	}
 
 	err = yaml.Unmarshal(data, c)
