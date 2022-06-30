@@ -7,9 +7,10 @@ server:
   crypto_key: private-key.pem
 
 agent:
+  log_level: "DEBUG"
   poller:
     poll_interval: 10s
   reporter:
     sign_key: test
-    server_address: "127.0.0.1:8081"
+    server_address: "127.0.0.1:8080"
     crypto_key: public-key.pem
