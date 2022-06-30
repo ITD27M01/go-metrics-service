@@ -15,7 +15,7 @@ var (
 // InMemoryStore implements Store interface to store metrics in memory
 type InMemoryStore struct {
 	metricsCache map[string]*metrics.Metric
-	mu           sync.Mutex
+	lock         sync.RWMutex
 }
 
 // NewInMemoryStore creates in memory store
@@ -29,8 +29,8 @@ func NewInMemoryStore() *InMemoryStore {
 
 // UpdateCounterMetric updates counter metric type
 func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string, metricData metrics.Counter) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	currentMetric, ok := m.metricsCache[metricName]
 	switch {
@@ -51,8 +51,8 @@ func (m *InMemoryStore) UpdateCounterMetric(_ context.Context, metricName string
 
 // ResetCounterMetric resets counter to default zero value
 func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	var zero metrics.Counter
 	currentMetric, ok := m.metricsCache[metricName]
@@ -74,8 +74,8 @@ func (m *InMemoryStore) ResetCounterMetric(_ context.Context, metricName string)
 
 // UpdateGaugeMetric updates gauge type metric
 func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, metricData metrics.Gauge) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	currentMetric, ok := m.metricsCache[metricName]
 	switch {
@@ -96,8 +96,8 @@ func (m *InMemoryStore) UpdateGaugeMetric(_ context.Context, metricName string, 
 
 // UpdateMetrics update number of metrics
 func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics.Metric) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	for _, metric := range metricsBatch {
 		currentMetric, ok := m.metricsCache[metric.ID]
@@ -120,6 +120,9 @@ func (m *InMemoryStore) UpdateMetrics(_ context.Context, metricsBatch []*metrics
 
 // GetMetric return metric by name
 func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string) (*metrics.Metric, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
 	metric, ok := m.metricsCache[metricName]
 	if !ok {
 		return nil, ErrMetricNotFound
@@ -130,7 +133,16 @@ func (m *InMemoryStore) GetMetric(_ context.Context, metricName string, _ string
 
 // GetMetrics returns all of stored metrics
 func (m *InMemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metric, error) {
-	return m.metricsCache, nil
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	metricsData := make(map[string]*metrics.Metric)
+
+	for k, v := range m.metricsCache {
+		metricsData[k] = v
+	}
+
+	return metricsData, nil
 }
 
 // Ping checks that underlying store is alive
