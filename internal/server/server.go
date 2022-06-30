@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -29,20 +28,26 @@ type ServerConfig struct {
 // MetricsServer is a server for metrics collecting
 type MetricsServer struct {
 	Cfg          *ServerConfig
-	context      context.Context
 	listener     *http.Server
 	metricsStore repository.Store
 	privateKey   *rsa.PrivateKey
 }
 
 // Start starts a server for metrics collecting
-func (s *MetricsServer) Start(ctx context.Context) {
-	serverContext, serverCancel := context.WithCancel(ctx)
-	s.context = serverContext
+func (s *MetricsServer) Start(parent context.Context) {
+	ctx, stop := signal.NotifyContext(parent,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer stop()
 
-	storeContext, storeCancel := context.WithCancel(ctx)
-
-	closeStore := initStore(storeContext, s)
+	closeStore := startServerStorage(ctx, s)
+	defer func() {
+		if err := closeStore(); err != nil {
+			log.Error().Err(err).Msg("Some error occurred while store close")
+		}
+	}()
 
 	privateKey, err := encryption.ReadPrivateKey(s.Cfg.CryptoKey)
 	if err != nil {
@@ -50,28 +55,10 @@ func (s *MetricsServer) Start(ctx context.Context) {
 	}
 	s.privateKey = privateKey
 
-	go s.startListener()
 	log.Info().Msgf("Start listener on %s", s.Cfg.ServerAddress)
+	go s.startListener()
+	<-ctx.Done()
 
-	log.Info().Msgf("%s signal received, graceful shutdown the server", <-getSignalChannel())
+	log.Info().Msg("signal received, graceful shutdown the server")
 	s.stopListener()
-
-	if err := closeStore(); err != nil {
-		log.Error().Err(err).Msg("Some error occurred while store close")
-	}
-	storeCancel()
-
-	serverCancel()
-}
-
-// getSignalChannel returns a channel from where stop signal will be received
-func getSignalChannel() chan os.Signal {
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-
-	return signalChannel
 }
