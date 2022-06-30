@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/caarlos0/env/v6"
-	"github.com/itd27m01/go-metrics-service/cmd/agent/cmd"
+	"os"
+	"time"
+
+	"github.com/spf13/pflag"
+
 	"github.com/itd27m01/go-metrics-service/internal/agent"
+	"github.com/itd27m01/go-metrics-service/internal/config"
 	"github.com/itd27m01/go-metrics-service/internal/greetings"
 	"github.com/itd27m01/go-metrics-service/pkg/logging"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
@@ -16,35 +20,54 @@ var (
 	buildCommit  string
 )
 
+const (
+	defaultServerScheme   = "http"
+	defaultServerAddress  = "127.0.0.1:8080"
+	defaultPollInterval   = 2 * time.Second
+	defaultReportInterval = 10 * time.Second
+	defaultServerTimeout  = 1 * time.Second
+)
+
+var (
+	Config config.Config
+)
+
+func init() {
+	pflag.StringVarP(&Config.Path, "config", "c", os.Getenv("CONFIG"),
+		"Agent config file path")
+
+	pflag.StringVar(&Config.AgentConfig.ReporterConfig.ServerAddress, "server-scheme", defaultServerScheme,
+		"Server scheme http or https")
+
+	pflag.StringVarP(&Config.AgentConfig.ReporterConfig.ServerAddress, "address", "a", defaultServerAddress,
+		"Pair of ip:port to connect to")
+
+	pflag.DurationVarP(&Config.AgentConfig.ReporterConfig.ServerTimeout, "timeout", "t", defaultServerTimeout,
+		"Timeout for server connection")
+
+	pflag.DurationVarP(&Config.AgentConfig.ReporterConfig.ReportInterval, "report", "r", defaultReportInterval,
+		"Number of seconds to periodically report metrics")
+
+	pflag.DurationVarP(&Config.AgentConfig.PollerConfig.PollInterval, "poll", "p", defaultPollInterval,
+		"Number of seconds to periodically get metrics")
+
+	pflag.StringVar(&Config.AgentConfig.ReporterConfig.CryptoKey, "crypto-key", "",
+		"A path to the pem file of public RSA key")
+
+	pflag.StringVarP(&Config.AgentConfig.ReporterConfig.SignKey, "key", "k", "",
+		"Sign key for metrics")
+
+	pflag.StringVarP(&Config.AgentConfig.LogLevel, "log-level", "l", "ERROR",
+		"Set log level: DEBUG|INFO|WARNING|ERROR")
+}
+
 func main() {
-	if err := cmd.Execute(); err != nil {
-		log.Fatal().Msgf("Failed to parse command line arguments: %v", err)
-	}
+	Config.MergeConfig()
 
-	logging.LogLevel(cmd.LogLevel)
-
-	pollWorkerConfig := agent.PollerConfig{
-		PollInterval: cmd.PollInterval,
-	}
-	if err := env.Parse(&pollWorkerConfig); err != nil {
-		log.Fatal().Msgf("%v", err)
-	}
-
-	reportWorkerConfig := agent.ReporterConfig{
-		ServerScheme:   "http",
-		ServerAddress:  cmd.ServerAddress,
-		ServerPath:     "/update/",
-		ServerTimeout:  cmd.ServerTimeout,
-		ReportInterval: cmd.ReportInterval,
-		CryptoKey:      cmd.CryptoKey,
-		SignKey:        cmd.SignKey,
-	}
-	if err := env.Parse(&reportWorkerConfig); err != nil {
-		log.Fatal().Err(err).Msg("Failed to parse environment variables")
-	}
+	logging.LogLevel(Config.AgentConfig.LogLevel)
 
 	if err := greetings.Print(buildVersion, buildDate, buildCommit); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start agent, failed to print greetings")
 	}
-	agent.Start(context.Background(), pollWorkerConfig, reportWorkerConfig)
+	agent.Start(context.Background(), &Config.AgentConfig)
 }

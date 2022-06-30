@@ -10,16 +10,22 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
+type AgentConfig struct {
+	PollerConfig   PollerConfig   `yaml:"poller"`
+	ReporterConfig ReporterConfig `yaml:"reporter"`
+	LogLevel       string         `yaml:"log_level" env:"LOG_LEVEL"`
+}
+
 // Start starts poller and reporter agent's workers
-func Start(ctx context.Context, pollWorkerConfig PollerConfig, reportWorkerConfig ReporterConfig) {
+func Start(ctx context.Context, config *AgentConfig) {
 	metricsStore := repository.NewInMemoryStore()
 
-	pollWorker := PollerWorker{Cfg: pollWorkerConfig}
+	pollWorker := PollerWorker{Cfg: &config.PollerConfig}
 	pollContext, cancelPoller := context.WithCancel(ctx)
 	go pollWorker.RunMemStats(pollContext, metricsStore)
 	go pollWorker.RunPsStats(pollContext, metricsStore)
 
-	reportWorker := ReportWorker{Cfg: &reportWorkerConfig}
+	reportWorker := ReportWorker{Cfg: &config.ReporterConfig}
 
 	reportContext, cancelReporter := context.WithCancel(ctx)
 	go reportWorker.Run(reportContext, metricsStore)

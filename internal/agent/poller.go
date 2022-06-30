@@ -23,12 +23,12 @@ const (
 
 // PollerConfig is a config for poller worker
 type PollerConfig struct {
-	PollInterval time.Duration `env:"POLL_INTERVAL"`
+	PollInterval time.Duration `yaml:"poll_interval" env:"POLL_INTERVAL"`
 }
 
 // PollerWorker defines poller worker type
 type PollerWorker struct {
-	Cfg PollerConfig
+	Cfg *PollerConfig
 }
 
 // RunMemStats runs worker for collecting memory metrics from localhost
