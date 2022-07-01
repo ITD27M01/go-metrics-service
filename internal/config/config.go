@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 
 	"github.com/itd27m01/go-metrics-service/internal/agent"
@@ -41,8 +40,6 @@ func (c *Config) ParseConfig(path string) error {
 
 // MergeConfig merges values from flags, file and env
 func (c *Config) MergeConfig() {
-	pflag.Parse()
-
 	err := c.ParseConfig(c.Path)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config file")

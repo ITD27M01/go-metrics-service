@@ -62,6 +62,7 @@ func init() {
 }
 
 func main() {
+	pflag.Parse()
 	Config.MergeConfig()
 
 	logging.LogLevel(Config.AgentConfig.LogLevel)
@@ -69,5 +70,6 @@ func main() {
 	if err := greetings.Print(buildVersion, buildDate, buildCommit); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start agent, failed to print greetings")
 	}
+
 	agent.Start(context.Background(), &Config.AgentConfig)
 }

@@ -136,7 +136,7 @@ func (m *InMemoryStore) GetMetrics(_ context.Context) (map[string]*metrics.Metri
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	metricsData := make(map[string]*metrics.Metric)
+	metricsData := make(map[string]*metrics.Metric, len(m.metricsCache))
 
 	for k, v := range m.metricsCache {
 		metricsData[k] = v
