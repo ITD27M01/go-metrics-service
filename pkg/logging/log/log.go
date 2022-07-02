@@ -11,6 +11,13 @@ import (
 // Logger is the global logger.
 var Logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Logger()
 
+// Debug starts a new message with debug level.
+//
+// You must call Msg on the returned event in order to send the event.
+func Debug() *zerolog.Event {
+	return Logger.Debug()
+}
+
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.

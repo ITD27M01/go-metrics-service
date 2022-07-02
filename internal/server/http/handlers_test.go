@@ -1,4 +1,4 @@
-package server_test
+package http_test
 
 import (
 	"io/ioutil"
@@ -6,10 +6,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	http2 "github.com/itd27m01/go-metrics-service/internal/server/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
-	"github.com/itd27m01/go-metrics-service/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -230,7 +231,7 @@ var tests = []test{
 
 func TestRouter(t *testing.T) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -249,7 +250,7 @@ func TestRouter(t *testing.T) {
 
 func BenchmarkRouter(b *testing.B) {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 

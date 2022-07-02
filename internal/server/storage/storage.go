@@ -1,41 +1,48 @@
-package server
+package storage
 
 import (
 	"context"
+	"time"
+
 	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
-// startServerStorage starts storage repository for metrics
-func startServerStorage(ctx context.Context, server *MetricsServer) func() error {
+// Config collects configuration for metrics storage
+type Config struct {
+	DatabaseDSN   string        `yaml:"database_dsn" env:"DATABASE_DSN"`
+	StoreFilePath string        `yaml:"store_file_path" env:"STORE_FILE"`
+	StoreInterval time.Duration `yaml:"store_interval" env:"STORE_INTERVAL"`
+	Restore       bool          `yaml:"restore" env:"RESTORE"`
+}
+
+// StartMetricsStorage starts storage repository for metrics
+func StartMetricsStorage(ctx context.Context, config *Config) (repository.Store, func() error) {
 	switch {
-	case server.Cfg.DatabaseDSN != "":
-		metricsStore, err := repository.NewDBStore(server.Cfg.DatabaseDSN)
+	case config.DatabaseDSN != "":
+		metricsStore, err := repository.NewDBStore(config.DatabaseDSN)
 		if err != nil {
 			log.Fatal().Msgf("Couldn't connect to database: %q", err)
 		}
 
-		server.metricsStore = metricsStore
-
 		log.Info().Msg("Using Database storage")
 
-		return func() error {
+		return metricsStore, func() error {
 			return metricsStore.Close()
 		}
-	case server.Cfg.StoreFilePath != "":
+	case config.StoreFilePath != "":
 		syncChannel := make(chan struct{}, 1)
-		metricsStore, err := repository.NewFileStore(server.Cfg.StoreFilePath, syncChannel)
+		metricsStore, err := repository.NewFileStore(config.StoreFilePath, syncChannel)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to make file storage")
 		}
-		server.metricsStore = metricsStore
 
 		log.Info().Msg("Using file storage")
 
-		metricsPreserver := preserver.NewPreserver(metricsStore, server.Cfg.StoreInterval, syncChannel)
+		metricsPreserver := preserver.NewPreserver(metricsStore, config.StoreInterval, syncChannel)
 
-		if server.Cfg.Restore && metricsStore.LoadMetrics() != nil {
+		if config.Restore && metricsStore.LoadMetrics() != nil {
 			log.Error().Msg("Filed to load metrics from store")
 		}
 
@@ -43,7 +50,7 @@ func startServerStorage(ctx context.Context, server *MetricsServer) func() error
 
 		go metricsPreserver.RunPreserver(preserverContext)
 
-		return func() error {
+		return metricsStore, func() error {
 			var err error
 			if err = metricsStore.SaveMetrics(); err != nil {
 				log.Error().Err(err).Msg("Something went wrong during metrics preserve")
@@ -58,9 +65,8 @@ func startServerStorage(ctx context.Context, server *MetricsServer) func() error
 		}
 	default:
 		log.Info().Msg("Using memory storage")
-		server.metricsStore = repository.NewInMemoryStore()
 
-		return func() error {
+		return repository.NewInMemoryStore(), func() error {
 			return nil
 		}
 	}

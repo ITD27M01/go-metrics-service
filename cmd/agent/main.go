@@ -5,13 +5,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/itd27m01/go-metrics-service/internal/greetings"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
+
 	"github.com/spf13/pflag"
 
 	"github.com/itd27m01/go-metrics-service/internal/agent"
 	"github.com/itd27m01/go-metrics-service/internal/config"
-	"github.com/itd27m01/go-metrics-service/internal/greetings"
 	"github.com/itd27m01/go-metrics-service/pkg/logging"
-	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 var (
@@ -21,11 +22,12 @@ var (
 )
 
 const (
-	defaultServerScheme   = "http"
-	defaultServerAddress  = "127.0.0.1:8080"
-	defaultPollInterval   = 2 * time.Second
-	defaultReportInterval = 10 * time.Second
-	defaultServerTimeout  = 1 * time.Second
+	defaultServerScheme      = "http"
+	defaultHTTPServerAddress = "127.0.0.1:8080"
+	defaultGRPCServerAddress = "127.0.0.1:8081"
+	defaultPollInterval      = 2 * time.Second
+	defaultReportInterval    = 10 * time.Second
+	defaultServerTimeout     = 1 * time.Second
 )
 
 var (
@@ -39,8 +41,11 @@ func init() {
 	pflag.StringVar(&Config.AgentConfig.ReporterConfig.ServerAddress, "server-scheme", defaultServerScheme,
 		"Server scheme http or https")
 
-	pflag.StringVarP(&Config.AgentConfig.ReporterConfig.ServerAddress, "address", "a", defaultServerAddress,
-		"Pair of ip:port to connect to")
+	pflag.StringVarP(&Config.AgentConfig.ReporterConfig.ServerAddress, "address", "a", defaultHTTPServerAddress,
+		"Pair of ip:port to connect to HTTP server")
+
+	pflag.StringVarP(&Config.AgentConfig.ReporterConfig.GRPCServerAddress, "grpc-address", "g", defaultGRPCServerAddress,
+		"Pair of ip:port to connect to GRPC server")
 
 	pflag.DurationVarP(&Config.AgentConfig.ReporterConfig.ServerTimeout, "timeout", "t", defaultServerTimeout,
 		"Timeout for server connection")
@@ -62,14 +67,14 @@ func init() {
 }
 
 func main() {
+	if err := greetings.Print(buildVersion, buildDate, buildCommit); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start agent, failed to print greetings")
+	}
+
 	pflag.Parse()
 	Config.MergeConfig()
 
 	logging.LogLevel(Config.AgentConfig.LogLevel)
-
-	if err := greetings.Print(buildVersion, buildDate, buildCommit); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start agent, failed to print greetings")
-	}
 
 	agent.Start(context.Background(), &Config.AgentConfig)
 }

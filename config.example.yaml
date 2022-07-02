@@ -1,10 +1,14 @@
 ---
 server:
-  address: "127.0.0.1:8080"
-  log_level: "DEBUG"
-  store_interval: 20s
+  http:
+    address: "127.0.0.1:8080"
+    crypto_key: private-key.pem
+  grpc:
+    address: "127.0.0.1:8081"
+  storage:
+    store_interval: 20s
   sign_key: test
-  crypto_key: private-key.pem
+  log_level: "DEBUG"
 
 agent:
   log_level: "DEBUG"
@@ -13,4 +17,5 @@ agent:
   reporter:
     sign_key: test
     server_address: "127.0.0.1:8080"
+    grpc_server_address: "127.0.0.1:8081"
     crypto_key: public-key.pem
