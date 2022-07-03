@@ -2,14 +2,13 @@ package server
 
 import (
 	"context"
-
 	"github.com/itd27m01/go-metrics-service/internal/preserver"
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
-// initStore creates storage repository for metrics
-func initStore(ctx context.Context, server *MetricsServer) func() error {
+// startServerStorage starts storage repository for metrics
+func startServerStorage(ctx context.Context, server *MetricsServer) func() error {
 	switch {
 	case server.Cfg.DatabaseDSN != "":
 		metricsStore, err := repository.NewDBStore(server.Cfg.DatabaseDSN)

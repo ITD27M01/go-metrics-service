@@ -2,8 +2,8 @@ package agent
 
 import (
 	"context"
-	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/itd27m01/go-metrics-service/internal/repository"
@@ -17,36 +17,43 @@ type AgentConfig struct {
 }
 
 // Start starts poller and reporter agent's workers
-func Start(ctx context.Context, config *AgentConfig) {
-	metricsStore := repository.NewInMemoryStore()
-
-	pollWorker := PollerWorker{Cfg: &config.PollerConfig}
-	pollContext, cancelPoller := context.WithCancel(ctx)
-	go pollWorker.RunMemStats(pollContext, metricsStore)
-	go pollWorker.RunPsStats(pollContext, metricsStore)
-
-	reportWorker := ReportWorker{Cfg: &config.ReporterConfig}
-
-	reportContext, cancelReporter := context.WithCancel(ctx)
-	go reportWorker.Run(reportContext, metricsStore)
-
-	log.Info().Msgf("%v signal received, stopping collector worker", <-getSignalChannel())
-	cancelPoller()
-
-	log.Info().Msg("...stopping reporter worker")
-	cancelReporter()
-
-	log.Info().Msg("All workers are stopped")
-}
-
-// getSignalChannel returns a channel for waiting and Cntrl-C signal
-func getSignalChannel() chan os.Signal {
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel,
+func Start(parent context.Context, config *AgentConfig) {
+	ctx, stop := signal.NotifyContext(parent,
 		syscall.SIGINT,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 	)
+	defer stop()
 
-	return signalChannel
+	wg := sync.WaitGroup{}
+
+	metricsStore := repository.NewInMemoryStore()
+
+	pollWorker := PollerWorker{Cfg: &config.PollerConfig}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		pollWorker.RunMemStats(ctx, metricsStore)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		pollWorker.RunPsStats(ctx, metricsStore)
+	}()
+
+	reportWorker := ReportWorker{Cfg: &config.ReporterConfig}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		reportWorker.Run(ctx, metricsStore)
+	}()
+
+	wg.Wait()
+	log.Info().Msg("All workers are stopped")
 }
