@@ -12,6 +12,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"github.com/itd27m01/go-metrics-service/pkg/logging"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
+	"github.com/itd27m01/go-metrics-service/pkg/security"
 )
 
 const (
@@ -25,6 +26,7 @@ func (s *MetricsServer) startListener() {
 	mux.Use(logging.HTTPRequestLogger(s.Cfg.LogLevel))
 	mux.Use(middleware.RequestID)
 	mux.Use(middleware.RealIP)
+	mux.Use(security.CheckRealIP(s.Cfg.TrustedSubnet))
 	mux.Use(middleware.Recoverer)
 
 	compressor := middleware.NewCompressor(gzip.BestCompression)

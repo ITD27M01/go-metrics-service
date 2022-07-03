@@ -14,6 +14,7 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
+	"github.com/itd27m01/go-metrics-service/pkg/security"
 )
 
 // ReporterConfig is a config for reporter worker
@@ -42,12 +43,12 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 		log.Fatal().Err(err).Msgf("Couldn't read public key from %s", rw.Cfg.CryptoKey)
 	}
 
+	transport := http.DefaultTransport
+	transport = encryption.NewEncryptRoundTripper(transport, publicKey)
+	transport = security.NewRealIPRoundTripper(transport)
 	client := http.Client{
-		Timeout: rw.Cfg.ServerTimeout,
-		Transport: encryption.EncryptRoundTripper{
-			Proxied:   http.DefaultTransport,
-			PublicKey: publicKey,
-		},
+		Timeout:   rw.Cfg.ServerTimeout,
+		Transport: transport,
 	}
 
 	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress

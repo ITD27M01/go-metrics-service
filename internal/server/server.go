@@ -22,6 +22,7 @@ type ServerConfig struct {
 	CryptoKey     string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
 	SignKey       string        `yaml:"sign_key" env:"KEY"`
 	DatabaseDSN   string        `yaml:"database_dsn" env:"DATABASE_DSN"`
+	TrustedSubnet string        `yaml:"trusted_subnet" env:"TRUSTED_SUBNET"`
 	LogLevel      string        `yaml:"log_level" env:"LOG_LEVEL"`
 }
 

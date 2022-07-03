@@ -54,24 +54,31 @@ func BodyDecrypt(privateKey *rsa.PrivateKey) func(http.Handler) http.Handler {
 
 // EncryptRoundTripper encrypt body of request
 type EncryptRoundTripper struct {
-	Proxied   http.RoundTripper
-	PublicKey *rsa.PublicKey
+	proxied   http.RoundTripper
+	publicKey *rsa.PublicKey
 }
 
-func (ert EncryptRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if ert.PublicKey == nil || req.Body == nil {
-		return ert.Proxied.RoundTrip(req)
+func NewEncryptRoundTripper(proxied http.RoundTripper, publicKey *rsa.PublicKey) *EncryptRoundTripper {
+	return &EncryptRoundTripper{
+		proxied:   proxied,
+		publicKey: publicKey,
+	}
+}
+
+func (ert *EncryptRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if ert.publicKey == nil || req.Body == nil {
+		return ert.proxied.RoundTrip(req)
 	}
 
 	body, err := io.ReadAll(req.Body)
 	switch {
 	case errors.Is(err, io.EOF):
-		return ert.Proxied.RoundTrip(req)
+		return ert.proxied.RoundTrip(req)
 	case err != nil:
 		return nil, ErrCouldntReadBody
 	}
 
-	encryptedBody, err := RSAEncrypt(body, ert.PublicKey)
+	encryptedBody, err := RSAEncrypt(body, ert.publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't encrypt body: %w", err)
 	}
@@ -79,5 +86,5 @@ func (ert EncryptRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 	req.Body = ioutil.NopCloser(bytes.NewBuffer(encryptedBody))
 	req.ContentLength = int64(len(encryptedBody))
 
-	return ert.Proxied.RoundTrip(req)
+	return ert.proxied.RoundTrip(req)
 }

@@ -55,11 +55,15 @@ func init() {
 	pflag.StringVarP(&Config.ServerConfig.DatabaseDSN, "databaseDSN", "d", "",
 		"Database DSN for metrics store")
 
+	pflag.StringVarP(&Config.ServerConfig.TrustedSubnet, "trusted-subnet", "t", "",
+		"Trusted subnet for this server")
+
 	pflag.StringVarP(&Config.ServerConfig.LogLevel, "log-level", "l", "ERROR",
 		"Set log level: DEBUG|INFO|WARNING|ERROR")
 }
 
 func main() {
+	pflag.Parse()
 	Config.MergeConfig()
 
 	logging.LogLevel(Config.ServerConfig.LogLevel)
