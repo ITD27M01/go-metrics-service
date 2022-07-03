@@ -5,14 +5,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/greetings"
-	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
-
 	"github.com/spf13/pflag"
 
 	"github.com/itd27m01/go-metrics-service/internal/agent"
 	"github.com/itd27m01/go-metrics-service/internal/config"
+	"github.com/itd27m01/go-metrics-service/internal/greetings"
 	"github.com/itd27m01/go-metrics-service/pkg/logging"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 var (
