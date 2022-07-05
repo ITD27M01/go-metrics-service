@@ -10,7 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
+	pb "github.com/itd27m01/go-metrics-service/internal/proto" // import protobufs
 	"github.com/itd27m01/go-metrics-service/internal/repository"
 	"github.com/itd27m01/go-metrics-service/pkg/encryption"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
@@ -19,13 +23,14 @@ import (
 
 // ReporterConfig is a config for reporter worker
 type ReporterConfig struct {
-	ServerScheme   string        `yaml:"server_scheme" env:"SERVER_SCHEME" envDefault:"http"`
-	ServerAddress  string        `yaml:"server_address" env:"ADDRESS"`
-	ServerPath     string        `yaml:"server_path" env:"SERVER_PATH" envDefault:"/update/"`
-	ReportInterval time.Duration `yaml:"report_interval" env:"REPORT_INTERVAL"`
-	ServerTimeout  time.Duration `yaml:"server_timeout" env:"SERVER_TIMEOUT"`
-	CryptoKey      string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
-	SignKey        string        `yaml:"sign_key" env:"KEY"`
+	ServerScheme      string        `yaml:"server_scheme" env:"SERVER_SCHEME" envDefault:"http"`
+	ServerAddress     string        `yaml:"server_address" env:"ADDRESS"`
+	GRPCServerAddress string        `yaml:"grpc_server_address" env:"GRPC_ADDRESS"`
+	ServerPath        string        `yaml:"server_path" env:"SERVER_PATH" envDefault:"/update/"`
+	ReportInterval    time.Duration `yaml:"report_interval" env:"REPORT_INTERVAL"`
+	ServerTimeout     time.Duration `yaml:"server_timeout" env:"SERVER_TIMEOUT"`
+	CryptoKey         string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
+	SignKey           string        `yaml:"sign_key" env:"KEY"`
 }
 
 // ReportWorker defines reporter worker object
@@ -38,6 +43,31 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	reportTicker := time.NewTicker(rw.Cfg.ReportInterval)
 	defer reportTicker.Stop()
 
+	httpClient := rw.getHTTPClient()
+	grpcClient, grpcConnection := rw.getGRPCClient()
+
+	serverHTTPURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
+	sendHTTPURL := serverHTTPURL + rw.Cfg.ServerPath
+
+	for {
+		select {
+		case <-ctx.Done():
+			if err := grpcConnection.Close(); err != nil {
+				log.Error().Err(err).Msg("Failed to close grpc connection")
+			}
+			return
+		case <-reportTicker.C:
+			SendHTTPReport(ctx, mtr, sendHTTPURL, httpClient)
+			SendHTTPReportJSON(ctx, mtr, sendHTTPURL, httpClient, rw.Cfg.SignKey)
+			SendHTTPBatchJSON(ctx, mtr, serverHTTPURL, httpClient)
+			SendGRPCReport(ctx, mtr, grpcClient)
+			resetCounters(ctx, mtr)
+		}
+	}
+}
+
+// getHTTPClient returns http client
+func (rw *ReportWorker) getHTTPClient() *http.Client {
 	publicKey, err := encryption.ReadPublicKey(rw.Cfg.CryptoKey)
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Couldn't read public key from %s", rw.Cfg.CryptoKey)
@@ -46,29 +76,69 @@ func (rw *ReportWorker) Run(ctx context.Context, mtr repository.Store) {
 	transport := http.DefaultTransport
 	transport = encryption.NewEncryptRoundTripper(transport, publicKey)
 	transport = security.NewRealIPRoundTripper(transport)
-	client := http.Client{
+	return &http.Client{
 		Timeout:   rw.Cfg.ServerTimeout,
 		Transport: transport,
 	}
+}
 
-	serverURL := rw.Cfg.ServerScheme + "://" + rw.Cfg.ServerAddress
-	sendURL := serverURL + rw.Cfg.ServerPath
+// getGRPCClient returns grpc client
+func (rw *ReportWorker) getGRPCClient() (pb.MetricsClient, *grpc.ClientConn) {
+	conn, err := grpc.Dial(rw.Cfg.GRPCServerAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Couldn't create grpc connection %s", rw.Cfg.GRPCServerAddress)
+	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-reportTicker.C:
-			SendReport(ctx, mtr, sendURL, &client)
-			SendReportJSON(ctx, mtr, sendURL, &client, rw.Cfg.SignKey)
-			SendBatchJSON(ctx, mtr, serverURL, &client)
-			resetCounters(ctx, mtr)
+	return pb.NewMetricsClient(conn), conn
+}
+
+// SendGRPCReport makes work for sending each metric in url params
+func SendGRPCReport(ctx context.Context, mtr repository.Store, client pb.MetricsClient) {
+	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
+	defer getCancel()
+
+	metricsMap, err := mtr.GetMetrics(getContext)
+	if err != nil {
+		log.Error().Err(err).Msgf("Some error occurred during metrics get")
+	}
+
+	if len(metricsMap) == 0 {
+		return
+	}
+	stream, err := client.UpdateMetrics(ctx)
+	if err != nil {
+		log.Error().Err(err).Msgf("Couldn't open grpc stream")
+		return
+	}
+	defer func() {
+		if resp, err := stream.CloseAndRecv(); err != nil {
+			log.Error().Err(err).Msg("Failed to close stream")
+		} else {
+			log.Info().Msgf("Close stream: %s", resp.Error)
+		}
+	}()
+
+	for _, v := range metricsMap {
+		request := pb.UpdateMetricRequest{
+			Metric: &pb.Metric{
+				ID:   v.ID,
+				Type: v.MType,
+				Hash: v.Hash,
+			},
+		}
+		if v.MType == metrics.MetricTypeGauge {
+			request.Metric.Value = float32(*v.Value)
+		} else {
+			request.Metric.Delta = int64(*v.Delta)
+		}
+		if err := stream.Send(&request); err != nil {
+			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
 
-// SendReport makes work for sending each metric in url params
-func SendReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+// SendHTTPReport makes work for sending each metric in url params
+func SendHTTPReport(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -87,15 +157,15 @@ func SendReport(ctx context.Context, mtr repository.Store, serverURL string, cli
 			stringifyMetricValue = fmt.Sprintf("%d", *v.Delta)
 		}
 		metricUpdateURL := fmt.Sprintf("%s/%s/%s/%s", serverURL, v.MType, v.ID, stringifyMetricValue)
-		err := sendMetric(ctx, metricUpdateURL, client)
+		err := sendHTTPMetric(ctx, metricUpdateURL, client)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
 
-// SendReportJSON gets metrics from underlying storage and sends each as a json object
-func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
+// SendHTTPReportJSON gets metrics from underlying storage and sends each as a json object
+func SendHTTPReportJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client, key string) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -107,15 +177,15 @@ func SendReportJSON(ctx context.Context, mtr repository.Store, serverURL string,
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/", serverURL)
 	for _, v := range metricsMap {
-		err := sendMetricJSON(ctx, updateURL, client, v, key)
+		err := sendHTTPMetricJSON(ctx, updateURL, client, v, key)
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to send metric %s", v.ID)
 		}
 	}
 }
 
-// SendBatchJSON gets metrics from underlying storage and sends them as a json list
-func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
+// SendHTTPBatchJSON gets metrics from underlying storage and sends them as a json list
+func SendHTTPBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, client *http.Client) {
 	getContext, getCancel := context.WithTimeout(ctx, pollTimeout)
 	defer getCancel()
 
@@ -132,13 +202,13 @@ func SendBatchJSON(ctx context.Context, mtr repository.Store, serverURL string, 
 	serverURL = strings.TrimSuffix(serverURL, "/")
 	updateURL := fmt.Sprintf("%s/updates/", serverURL)
 
-	if err := sendBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
+	if err := sendHTTPBatchJSON(ctx, updateURL, client, metricsSlice); err != nil {
 		log.Error().Err(err).Msg("Filed to send metrics")
 	}
 }
 
-// sendMetric sends metric in url params
-func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
+// sendHTTPMetric sends metric in url params
+func sendHTTPMetric(ctx context.Context, metricUpdateURL string, client *http.Client) error {
 	log.Info().Msgf("Update metric: %s", metricUpdateURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, metricUpdateURL, nil)
 	if err != nil {
@@ -165,8 +235,8 @@ func sendMetric(ctx context.Context, metricUpdateURL string, client *http.Client
 	return nil
 }
 
-// sendMetricJSON reports to the server a metric in json
-func sendMetricJSON(ctx context.Context, serverURL string,
+// sendHTTPMetricJSON reports to the server a metric in json
+func sendHTTPMetricJSON(ctx context.Context, serverURL string,
 	client *http.Client, metric *metrics.Metric, key string) error {
 	log.Info().Msgf("Update metric: %s", metric.ID)
 
@@ -201,8 +271,8 @@ func sendMetricJSON(ctx context.Context, serverURL string,
 	return nil
 }
 
-// sendBatchJSON reports to the server a batch of metrics
-func sendBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
+// sendHTTPBatchJSON reports to the server a batch of metrics
+func sendHTTPBatchJSON(ctx context.Context, metricsUpdateURL string, client *http.Client, metrics []*metrics.Metric) error {
 
 	encodedMetrics, err := json.Marshal(metrics)
 	if err != nil {

@@ -2,40 +2,27 @@ package server
 
 import (
 	"context"
-	"crypto/rsa"
-	"net/http"
+	"errors"
 	"os/signal"
+	"sync"
 	"syscall"
-	"time"
 
-	"github.com/itd27m01/go-metrics-service/internal/repository"
-	"github.com/itd27m01/go-metrics-service/pkg/encryption"
+	"github.com/itd27m01/go-metrics-service/internal/config"
+	"github.com/itd27m01/go-metrics-service/internal/server/grpc"
+	"github.com/itd27m01/go-metrics-service/internal/server/http"
+	"github.com/itd27m01/go-metrics-service/internal/server/storage"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
-// ServerConfig collects configuration for metrics server
-type ServerConfig struct {
-	ServerAddress string        `yaml:"address" env:"ADDRESS"`
-	StoreInterval time.Duration `yaml:"store_interval" env:"STORE_INTERVAL"`
-	StoreFilePath string        `yaml:"store_file_path" env:"STORE_FILE"`
-	Restore       bool          `yaml:"restore" env:"RESTORE"`
-	CryptoKey     string        `yaml:"crypto_key" env:"CRYPTO_KEY"`
-	SignKey       string        `yaml:"sign_key" env:"KEY"`
-	DatabaseDSN   string        `yaml:"database_dsn" env:"DATABASE_DSN"`
-	TrustedSubnet string        `yaml:"trusted_subnet" env:"TRUSTED_SUBNET"`
-	LogLevel      string        `yaml:"log_level" env:"LOG_LEVEL"`
-}
-
-// MetricsServer is a server for metrics collecting
+// MetricsServer implements metrics server
 type MetricsServer struct {
-	Cfg          *ServerConfig
-	listener     *http.Server
-	metricsStore repository.Store
-	privateKey   *rsa.PrivateKey
+	Cfg  *config.ServerConfig
+	http http.Server
+	grpc grpc.Server
 }
 
-// Start starts a server for metrics collecting
-func (s *MetricsServer) Start(parent context.Context) {
+// Start starts metrics server
+func (ms *MetricsServer) Start(parent context.Context) {
 	ctx, stop := signal.NotifyContext(parent,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -43,23 +30,38 @@ func (s *MetricsServer) Start(parent context.Context) {
 	)
 	defer stop()
 
-	closeStore := startServerStorage(ctx, s)
+	metricsStorage, closeStore := storage.StartMetricsStorage(ctx, &ms.Cfg.StorageConfig)
 	defer func() {
 		if err := closeStore(); err != nil {
 			log.Error().Err(err).Msg("Some error occurred while store close")
 		}
 	}()
 
-	privateKey, err := encryption.ReadPrivateKey(s.Cfg.CryptoKey)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Couldn't read private key from %s", s.Cfg.CryptoKey)
+	wg := sync.WaitGroup{}
+
+	ms.http = http.Server{
+		Cfg:     &ms.Cfg.HTTPConfig,
+		SignKey: ms.Cfg.SignKey,
 	}
-	s.privateKey = privateKey
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := ms.http.Start(ctx, metricsStorage); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Err(err).Msgf("error on listen and serve HTTP server: %s", err)
+		}
+	}()
 
-	log.Info().Msgf("Start listener on %s", s.Cfg.ServerAddress)
-	go s.startListener()
-	<-ctx.Done()
+	ms.grpc = grpc.Server{
+		Cfg:     &ms.Cfg.GRPCConfig,
+		SignKey: ms.Cfg.SignKey,
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := ms.grpc.Start(ctx, metricsStorage); err != nil {
+			log.Fatal().Err(err).Msgf("error on listen and serve GRPC server: %s", err)
+		}
+	}()
 
-	log.Info().Msg("signal received, graceful shutdown the server")
-	s.stopListener()
+	wg.Wait()
 }

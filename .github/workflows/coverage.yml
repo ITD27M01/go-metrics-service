@@ -2,12 +2,7 @@
 name: coverage
 
 on:
-  workflow_run:
-    workflows:
-      - autotests
-      - statictest
-    types:
-      - completed
+  pull_request:
 
 jobs:
   test:

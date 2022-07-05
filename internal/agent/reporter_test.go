@@ -66,7 +66,7 @@ func TestSendReport(t *testing.T) {
 	}))
 	defer server.Close()
 
-	agent.SendReport(context.Background(), mtr, server.URL, server.Client())
+	agent.SendHTTPReport(context.Background(), mtr, server.URL, server.Client())
 }
 
 func TestSendReportJSON(t *testing.T) {
@@ -105,5 +105,5 @@ func TestSendReportJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	agent.SendReportJSON(context.Background(), mtr, server.URL, server.Client(), "")
+	agent.SendHTTPReportJSON(context.Background(), mtr, server.URL, server.Client(), "")
 }

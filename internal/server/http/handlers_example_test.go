@@ -1,9 +1,10 @@
-package server_test
+package http_test
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	http2 "github.com/itd27m01/go-metrics-service/internal/server/http"
 	"net/http"
 	"net/http/httptest"
 
@@ -11,12 +12,11 @@ import (
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
 
 	"github.com/itd27m01/go-metrics-service/internal/repository"
-	"github.com/itd27m01/go-metrics-service/internal/server"
 )
 
 func ExamplePingHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -34,7 +34,7 @@ func ExamplePingHandler() {
 
 func ExampleUpdateHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -71,7 +71,7 @@ func ExampleUpdateHandler() {
 
 func ExampleUpdatesHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -101,7 +101,7 @@ func ExampleUpdatesHandler() {
 
 func ExampleGetMetricHandler() {
 	mux := chi.NewRouter()
-	server.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
+	http2.RegisterHandlers(mux, repository.NewInMemoryStore(), "")
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
