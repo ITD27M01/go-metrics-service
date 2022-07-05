@@ -4,19 +4,31 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/itd27m01/go-metrics-service/internal/server/grpc"
+
+	"github.com/itd27m01/go-metrics-service/internal/server/http"
+	"github.com/itd27m01/go-metrics-service/internal/server/storage"
+
 	"github.com/caarlos0/env/v6"
 	"gopkg.in/yaml.v3"
 
 	"github.com/itd27m01/go-metrics-service/internal/agent"
-	"github.com/itd27m01/go-metrics-service/internal/server"
 	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 )
 
 // Config collects configuration for project
 type Config struct {
 	Path         string
-	ServerConfig server.ServerConfig `yaml:"server"`
-	AgentConfig  agent.AgentConfig   `yaml:"agent"`
+	ServerConfig ServerConfig      `yaml:"server"`
+	AgentConfig  agent.AgentConfig `yaml:"agent"`
+}
+
+type ServerConfig struct {
+	HTTPConfig    http.Config    `yaml:"http"`
+	GRPCConfig    grpc.Config    `yaml:"grpc"`
+	StorageConfig storage.Config `yaml:"storage"`
+	SignKey       string         `yaml:"sign_key" env:"KEY"`
+	LogLevel      string         `yaml:"log_level" env:"LOG_LEVEL"`
 }
 
 // ParseConfig parses config from file

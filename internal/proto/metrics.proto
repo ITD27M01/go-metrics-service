@@ -1,0 +1,23 @@
+syntax = "proto3";
+package proto;
+option go_package = "github.com/itd27m01/go-metrics-service/internal/proto";
+
+message Metric {
+  string ID = 1;
+  string Type = 2;
+  int64 Delta = 3;
+  float Value = 4;
+  string Hash = 5;
+}
+
+message UpdateMetricRequest {
+  Metric metric = 1;
+}
+
+message UpdateMetricResponse {
+  string error = 1;
+}
+
+service Metrics {
+  rpc UpdateMetrics (stream UpdateMetricRequest) returns (UpdateMetricResponse) {}
+}

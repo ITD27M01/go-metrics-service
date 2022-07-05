@@ -27,10 +27,10 @@ func LogLevel(level string) {
 }
 
 // HTTPRequestLogger is a special middleware for logging HTTP requests
-func HTTPRequestLogger(level string) func(next http.Handler) http.Handler {
+func HTTPRequestLogger() func(next http.Handler) http.Handler {
 	logger := httplog.NewLogger("metrics", httplog.Options{
 		JSON:     false,
-		LogLevel: strings.ToLower(level),
+		LogLevel: strings.ToLower(zerolog.GlobalLevel().String()),
 	})
 
 	return httplog.RequestLogger(logger)

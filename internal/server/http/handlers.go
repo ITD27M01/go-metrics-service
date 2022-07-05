@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"context"
@@ -29,12 +29,12 @@ const (
 )
 
 // RegisterHandlers registers metrics server handlers
-func RegisterHandlers(mux *chi.Mux, metricsStore repository.Store, signKey string) {
-	mux.Route("/ping", PingHandler(metricsStore))
-	mux.Route("/update/", UpdateHandler(metricsStore, signKey))
-	mux.Route("/updates/", UpdatesHandler(metricsStore))
-	mux.Route("/value/", GetMetricHandler(metricsStore, signKey))
-	mux.Route("/", GetMetricsHandler(metricsStore))
+func RegisterHandlers(router *chi.Mux, metricsStore repository.Store, signKey string) {
+	router.Route("/ping", PingHandler(metricsStore))
+	router.Route("/update/", UpdateHandler(metricsStore, signKey))
+	router.Route("/updates/", UpdatesHandler(metricsStore))
+	router.Route("/value/", GetMetricHandler(metricsStore, signKey))
+	router.Route("/", GetMetricsHandler(metricsStore))
 }
 
 // PingHandler is a special handler which pings the database
@@ -229,6 +229,8 @@ func updateHandlerPlain(metricsStore repository.Store) func(w http.ResponseWrite
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Cannot save provided data: %s", metricData), http.StatusBadRequest)
 		}
+
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
