@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/itd27m01/go-metrics-service/internal/models/metrics"
@@ -24,16 +25,29 @@ func (s *Server) UpdateMetrics(stream pb.Metrics_UpdateMetricsServer) error {
 			return err
 		}
 
-		protoMetric := message.Metric
-		if protoMetric.Type == metrics.MetricTypeGauge {
-			gaugeValue := metrics.Gauge(protoMetric.Value)
+		switch message.Metric.Type {
+		case metrics.MetricTypeGauge:
+			gaugeValue := metrics.Gauge(message.Metric.Value)
 			metric = metrics.Metric{
-				ID:    protoMetric.ID,
-				MType: protoMetric.Type,
+				ID:    message.Metric.ID,
+				MType: message.Metric.Type,
 				Value: &gaugeValue,
-				Hash:  protoMetric.Hash,
+				Hash:  message.Metric.Hash,
 			}
+		case metrics.MetricTypeCounter:
+			counterValue := metrics.Counter(message.Metric.Delta)
+			metric = metrics.Metric{
+				ID:    message.Metric.ID,
+				MType: message.Metric.Type,
+				Delta: &counterValue,
+				Hash:  message.Metric.Hash,
+			}
+		default:
+			err := fmt.Errorf("unknown metric type: %s", message.Metric.Type)
+			log.Error().Err(err).Msgf("Failed to update metrics")
+			return stream.SendAndClose(&pb.UpdateMetricResponse{Error: err.Error()})
 		}
+
 		metricsSlice = append(metricsSlice, &metric)
 	}
 
