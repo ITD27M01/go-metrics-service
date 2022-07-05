@@ -2,6 +2,7 @@ package security
 
 import (
 	"fmt"
+	"github.com/itd27m01/go-metrics-service/pkg/logging/log"
 	"net"
 	"net/http"
 )
@@ -9,18 +10,27 @@ import (
 // RealIPRoundTripper sets X-Real-IP header for client
 type RealIPRoundTripper struct {
 	proxied http.RoundTripper
-	localIP string
 }
 
-func NewRealIPRoundTripper(proxied http.RoundTripper, localIP string) *RealIPRoundTripper {
+func NewRealIPRoundTripper(proxied http.RoundTripper) *RealIPRoundTripper {
 	return &RealIPRoundTripper{
 		proxied: proxied,
-		localIP: localIP,
 	}
 }
 
 func (realIPtr *RealIPRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.Header.Set("X-Real-IP", realIPtr.localIP)
+	conn, err := net.Dial("tcp", net.JoinHostPort(req.URL.Hostname(), req.URL.Port()))
+	if err != nil {
+		return nil, fmt.Errorf("couldn't make tcp connection in RealIP middleware: %w", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error().Msgf("Couldn't close tcp connection in RealIP middleware: %s", err)
+		}
+	}()
+	localAddr := conn.LocalAddr().(*net.TCPAddr)
+
+	req.Header.Set("X-Real-IP", localAddr.IP.String())
 
 	return realIPtr.proxied.RoundTrip(req)
 }

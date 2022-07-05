@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -76,20 +75,7 @@ func (rw *ReportWorker) getHTTPClient() *http.Client {
 
 	transport := http.DefaultTransport
 	transport = encryption.NewEncryptRoundTripper(transport, publicKey)
-
-	conn, err := net.Dial("tcp", rw.Cfg.ServerAddress)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Couldn't create tcp connection in RealIP middleware: %s", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Fatal().Msgf("Couldn't close tcp connection in RealIP middleware: %s", err)
-		}
-	}()
-	localAddr := conn.LocalAddr().(*net.TCPAddr)
-
-	transport = security.NewRealIPRoundTripper(transport, localAddr.String())
-
+	transport = security.NewRealIPRoundTripper(transport)
 	return &http.Client{
 		Timeout:   rw.Cfg.ServerTimeout,
 		Transport: transport,
